@@ -31,16 +31,16 @@ export function execute(...operations) {
 }
 
 /**
- * Make a POST request
+ * Execute an SQL query
  * @example
  * execute(
- *   post(params)
+ *   sql(params)
  * )(state)
  * @constructor
- * @param {object} params - data to make the POST
+ * @param {object} params - data to make the query
  * @returns {Operation}
  */
-export function post(url, {body, callback, headers}) {
+export function insert(table, rowData) {
 
   return state => {
 
@@ -67,7 +67,7 @@ export function post(url, {body, callback, headers}) {
       sql.query
     )
 
-    return new Promise((resolve, reject) => {
+    // return new Promise((resolve, reject) => {
 
       var pg = require('pg');
 
@@ -84,7 +84,6 @@ export function post(url, {body, callback, headers}) {
         ssl: true
       };
 
-
       //this initializes a connection pool
       //it will keep idle connections open for a 30 seconds
       //and set a limit of maximum 10 idle clients
@@ -96,14 +95,14 @@ export function post(url, {body, callback, headers}) {
         if(err) {
           return console.error('error fetching client from pool', err);
         }
-        client.query('SELECT NOW() as time', ['1'], function(err, result) {
+        client.query('SELECT NOW() as time', function(err, result) {
           // call `done()` to release the client back to the pool
           done();
 
           if(err) {
             return console.error('error running query', err);
           }
-          console.log(result.rows[0].number);
+          console.log(result);
           //output: 1
         });
       });
@@ -118,11 +117,12 @@ export function post(url, {body, callback, headers}) {
         console.error('idle client error', err.message, err.stack)
       })
 
-    }).then((data) => {
-      const nextState = { ...state, response: { body: data } };
-      if (callback) return callback(nextState);
-      return nextState;
-    })
+    // })
+
+    // .then((data) => {
+    //   const nextState = { ...state, response: { body: data } };
+    //   return nextState;
+    // })
 
   }
 }

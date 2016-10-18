@@ -14,8 +14,9 @@
     "lib/"
   ],
   "dependencies": {
-    "language-common": "github:openfn/language-common#v0.0.5",
-    "pg": "^6.1.0"
+    "language-common": "github:openfn/language-common",
+    "pg": "^6.1.0",
+    "json-sql": "^0.3.8"
   },
   "devDependencies": {
     "assertion-error": "^1.0.1",

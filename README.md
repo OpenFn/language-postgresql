@@ -9,7 +9,7 @@ Documentation
 
 #### sample configuration
 ```js
-wip
+insert(table, rowData)
 ```
 
 Development
