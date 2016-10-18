@@ -45,11 +45,11 @@ export function post(url, {body, callback, headers}) {
   return state => {
 
     const {
-      username,
-      password,
-      database,
       host,
-      port
+      port,
+      database,
+      password,
+      user
     } = state.configuration;
 
     const dataObject = expandReferences(rowData)(state);
@@ -76,12 +76,12 @@ export function post(url, {body, callback, headers}) {
       // note: all config is optional and the environment variables
       // will be read if the config is not present
       var config = {
-        user: username, //env var: PGUSER
-        database: database, //env var: PGDATABASE
-        password: password, //env var: PGPASSWORD
-        port: port, //env var: PGPORT
-        max: 10, // max number of clients in the pool
-        idleTimeoutMillis: 30000, // how long a client is allowed to remain idle before being closed
+        host: host,
+        port: port,
+        database: database,
+        user: user,
+        password: password,
+        ssl: true
       };
 
 
@@ -96,9 +96,8 @@ export function post(url, {body, callback, headers}) {
         if(err) {
           return console.error('error fetching client from pool', err);
         }
-        // client.query('SELECT $1::int AS number', ['1'], function(err, result) {
-        client.query(body, ['1'], function(err, result) {
-          //call `done()` to release the client back to the pool
+        client.query('SELECT NOW() as time', ['1'], function(err, result) {
+          // call `done()` to release the client back to the pool
           done();
 
           if(err) {
