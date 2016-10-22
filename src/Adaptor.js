@@ -25,9 +25,39 @@ export function execute(...operations) {
   }
 
   return state => {
-    return commonExecute(...operations)({ ...initialState, ...state })
+    return commonExecute(
+      connect,
+      ...operations,
+      disconnect,
+      cleanupState
+    )({ ...initialState, ...state })
   };
 
+}
+
+function connect(state) {
+  const { host, port, database, password, user } = state.configuration;
+
+  // setup client config
+  var config = { host, port, database, user, password, ssl: true };
+
+  // instantiate a new client
+  var client = new pg.Client(config);
+
+  client.connect()
+
+  return { ...state, client: client }
+}
+
+function disconnect(state) {
+  let { client } = state;
+  client.end()
+  return state
+}
+
+function cleanupState(state) {
+  delete state.client;
+  return state;
 }
 
 /**
@@ -44,44 +74,19 @@ export function sql(sqlQuery) {
 
   return state => {
 
-    const {
-      host,
-      port,
-      database,
-      password,
-      user
-    } = state.configuration;
+    let { client } = state;
 
     const body = sqlQuery(state);
     console.log("Executing SQL statement: " + body)
 
-    // setup client config
-    var config = {
-      host: host,
-      port: port,
-      database: database,
-      user: user,
-      password: password,
-      ssl: true
-    };
-
-    // instantiate a new client
-    var client = new pg.Client(config);
-
     return new Promise((resolve, reject) => {
-      // connect to our database
-      return client.connect(function(err) {
+      // execute a query on our database
+      client.query(body, function(err, result) {
         if (err) reject(err);
-        // execute a query on our database
-        client.query(body, function(err, result) {
-          if (err) reject(err);
-          // print the result to the console
-          resolve(console.log(result))
-          // disconnect the client
-          client.end(function (err) {
-            if (err) reject(err);
-          })
-        })
+        // print the result to the console
+        console.log(result)
+        resolve(result)
+        // disconnect the client
       })
     })
     .then((data) => {
