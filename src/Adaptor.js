@@ -70,19 +70,23 @@ export function sql(sqlQuery) {
 
     return new Promise((resolve, reject) => {
       // connect to our database
-      client.connect(function(err) {
-        if (err) throw err;
+      return client.connect(function(err) {
+        if (err) reject(err);
         // execute a query on our database
         client.query(body, function(err, result) {
-          if (err) throw err;
+          if (err) reject(err);
           // print the result to the console
-          console.log(result);
+          resolve(console.log(result))
           // disconnect the client
           client.end(function (err) {
-            if (err) throw err;
+            if (err) reject(err);
           })
         })
       })
+    })
+    .then((data) => {
+      const nextState = { ...state, response: { body: data } };
+      return nextState;
     })
 
   }
