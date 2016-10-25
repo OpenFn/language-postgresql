@@ -36,6 +36,31 @@ sql(
 )
 ```
 
+#### query, alter state, query again
+```js
+sql(
+  function(state) {
+    console.log(state)
+    return (
+      `select FIRSTNAME from human limit 10`
+    )
+  }
+),
+alterState((state) => {
+  state.response.body.rows.forEach( function (arrayItem) {
+    arrayItem.firstname = arrayItem.firstname + " and santosh sittin in a tree"
+    console.log(arrayItem.firstname)
+  })
+  console.log(state)
+  return state;
+}),
+sql(
+  function(state) {
+    // does something with the new, altered state!
+  }
+)
+```
+
 ## `insert(table, rowData)`
 Run an insert statement by specifying the table and an bunch of key:value pairs,
 typically created using `fields(field("key", "value"))`.
