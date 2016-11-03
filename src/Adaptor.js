@@ -84,16 +84,21 @@ export function sql(sqlQuery) {
       client.query(body, function(err, result) {
         if (err) reject(err);
         // print the result to the console
-        console.log(result)
-        resolve(result)
+          // console.log(err)
+          console.log("***************** sqlQuery Result Start **************")
+          console.log(result)
+          console.log("***************** sqlQuery Result End  ***************")
+
+          resolve(result)
         // disconnect the client
       })
     })
     .then((data) => {
+      console.log("DAAAATTAAAAAAAAA")
+      console.log(data)      
       const nextState = { ...state, response: { body: data } };
       return nextState;
     })
-
   }
 }
 
@@ -149,6 +154,6 @@ export function insert(table, rowData) {
 }
 
 export {
-  field, fields, sourceValue, fields, alterState, arrayToString,
+  field, fields, sourceValue, fields, alterState, arrayToString, each, combine,
   merge, dataPath, dataValue, lastReferenceValue
 } from 'language-common';
