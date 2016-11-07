@@ -82,15 +82,14 @@ export function sql(sqlQuery) {
     return new Promise((resolve, reject) => {
       // execute a query on our database
       client.query(body, function(err, result) {
-        if (err) reject(err);
-        // print the result to the console
-          // console.log(err)
-          console.log("***************** sqlQuery Result Start **************")
+        if (err) {
+          reject(err);
+          // Disconnect if there's an error.
+          client.end();
+        } else {
           console.log(result)
-          console.log("***************** sqlQuery Result End  ***************")
-
           resolve(result)
-        // disconnect the client
+        }
       })
     })
     .then((data) => {
