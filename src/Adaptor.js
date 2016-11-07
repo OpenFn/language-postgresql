@@ -94,8 +94,6 @@ export function sql(sqlQuery) {
       })
     })
     .then((data) => {
-      console.log("DAAAATTAAAAAAAAA")
-      console.log(data)      
       const nextState = { ...state, response: { body: data } };
       return nextState;
     })
