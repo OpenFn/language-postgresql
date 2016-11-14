@@ -65,6 +65,10 @@ sql(
 Run an insert statement by specifying the table and an bunch of key:value pairs,
 typically created using `fields(field("key", "value"))`.
 
+#### `insert` WARNING
+With certain jobs using insert(...) it's possible to fail without properly returning a 1.
+I advise against using this function until the next release.
+
 #### sample usage
 ```js
 insert("humans", fields(
