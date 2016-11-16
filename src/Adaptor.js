@@ -2,8 +2,6 @@ import { execute as commonExecute, expandReferences } from 'language-common';
 import { resolve as resolveUrl } from 'url';
 import pg from 'pg';
 
-var jsonSql = require('json-sql')();
-
 /** @module Adaptor */
 
 /**
@@ -26,6 +24,7 @@ export function execute(...operations) {
 
   return state => {
     return commonExecute(
+      createClient,
       connect,
       ...operations,
       disconnect,
@@ -35,7 +34,7 @@ export function execute(...operations) {
 
 }
 
-function connect(state) {
+function createClient(state) {
   const { host, port, database, password, user } = state.configuration;
 
   // setup client config
@@ -44,8 +43,12 @@ function connect(state) {
   // instantiate a new client
   var client = new pg.Client(config);
 
-  client.connect()
+  return { ...state, client: client }
+}
 
+function connect(state) {
+  let { client } = state;
+  client.connect()
   return { ...state, client: client }
 }
 
@@ -76,26 +79,36 @@ export function sql(sqlQuery) {
 
     let { client } = state;
 
-    const body = sqlQuery(state);
-    console.log("Executing SQL statement: " + body)
+    try {
 
-    return new Promise((resolve, reject) => {
-      // execute a query on our database
-      client.query(body, function(err, result) {
-        if (err) {
-          reject(err);
-          // Disconnect if there's an error.
-          client.end();
-        } else {
-          console.log(result)
-          resolve(result)
-        }
+      const body = sqlQuery(state);
+      console.log("Executing SQL statement: " + body)
+
+      return new Promise((resolve, reject) => {
+        // execute a query on our database
+        client.query(body, function(err, result) {
+          if (err) {
+            reject(err);
+            // Disconnect if there's an error.
+            client.end();
+          } else {
+            console.log(result)
+            resolve(result)
+          }
+        })
       })
-    })
-    .then((data) => {
-      const nextState = { ...state, response: { body: data } };
-      return nextState;
-    })
+      .then((data) => {
+        const nextState = { ...state, response: { body: data } };
+        return nextState;
+      })
+
+    } catch (e) {
+
+      console.log(e)
+      client.end()
+
+    }
+
   }
 }
 
