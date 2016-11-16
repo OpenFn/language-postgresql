@@ -135,11 +135,14 @@ export function insert(table, rowData) {
     return new Promise((resolve, reject) => {
       // execute a query on our database
       client.query(body, function(err, result) {
-        if (err) reject(err);
-        // print the result to the console
-        console.log(result)
-        resolve(result)
-        // disconnect the client
+        if (err) {
+          reject(err);
+          // Disconnect if there's an error.
+          client.end();
+        } else {
+          console.log(result)
+          resolve(result)
+        }
       })
     })
     .then((data) => {
