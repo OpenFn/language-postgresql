@@ -99,60 +99,6 @@ export function sql(sqlQuery) {
   }
 }
 
-/**
- * Execute an SQL insert statement
- * @example
- * execute(
- *   sql(params)
- * )(state)
- * @constructor
- * @param {object} params - data to make the query
- * @returns {Operation}
- */
-export function insert(table, rowData) {
-
-  return state => {
-
-    let { client } = state;
-
-    const dataObject = expandReferences(rowData)(state);
-
-    const sql = jsonSql.build({
-        type: 'insert',
-        table: table,
-        values: dataObject
-    });
-
-    const body = Object.keys(sql.values).reduce(
-      function(query, valueKey) {
-        return query.replace(`\$${valueKey}`, `'${sql.values[valueKey]}'`)
-      },
-      sql.query
-    )
-
-    console.log("Executing SQL statement: " + body)
-
-    return new Promise((resolve, reject) => {
-      // execute a query on our database
-      client.query(body, function(err, result) {
-        if (err) {
-          reject(err);
-          // Disconnect if there's an error.
-          client.end();
-        } else {
-          console.log(result)
-          resolve(result)
-        }
-      })
-    })
-    .then((data) => {
-      const nextState = { ...state, response: { body: data } };
-      return nextState;
-    })
-
-  }
-}
-
 export {
   field, fields, sourceValue, fields, alterState, arrayToString, each, combine,
   merge, dataPath, dataValue, lastReferenceValue
