@@ -19,19 +19,18 @@ import pg from 'pg';
 export function execute(...operations) {
   const initialState = {
     references: [],
-    data: null
-  }
+    data: null,
+  };
 
-  return state => {
+  return (state) => {
     return commonExecute(
       createClient,
       connect,
       ...operations,
       disconnect,
       cleanupState
-    )({ ...initialState, ...state })
+    )({ ...initialState, ...state });
   };
-
 }
 
 function createClient(state) {
@@ -43,19 +42,19 @@ function createClient(state) {
   // instantiate a new client
   var client = new pg.Client(config);
 
-  return { ...state, client: client }
+  return { ...state, client: client };
 }
 
 function connect(state) {
   let { client } = state;
-  client.connect()
-  return { ...state, client: client }
+  client.connect();
+  return { ...state, client: client };
 }
 
 function disconnect(state) {
   let { client } = state;
-  client.end()
-  return state
+  client.end();
+  return state;
 }
 
 function cleanupState(state) {
@@ -74,45 +73,46 @@ function cleanupState(state) {
  * @returns {Operation}
  */
 export function sql(sqlQuery) {
-
-  return state => {
-
+  return (state) => {
     let { client } = state;
 
     try {
-
       const body = sqlQuery(state);
-      console.log("Executing SQL statement: " + body)
+      console.log('Executing SQL statement: ' + body);
 
       return new Promise((resolve, reject) => {
         // execute a query on our database
-        client.query(body, function(err, result) {
+        client.query(body, function (err, result) {
           if (err) {
             reject(err);
             // Disconnect if there's an error.
             client.end();
           } else {
-            console.log(result)
-            resolve(result)
+            console.log(result);
+            resolve(result);
           }
-        })
-      })
-      .then((data) => {
+        });
+      }).then((data) => {
         const nextState = { ...state, response: { body: data } };
         return nextState;
-      })
-
+      });
     } catch (e) {
-
-      console.log(e)
-      client.end()
-
+      console.log(e);
+      client.end();
     }
-
-  }
+  };
 }
 
 export {
-  field, fields, sourceValue, fields, alterState, arrayToString, each, combine,
-  merge, dataPath, dataValue, lastReferenceValue
+  alterState,
+  arrayToString,
+  combine,
+  dataPath,
+  dataValue,
+  each,
+  field,
+  fields,
+  lastReferenceValue,
+  merge,
+  sourceValue,
 } from 'language-common';
