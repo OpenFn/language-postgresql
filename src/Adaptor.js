@@ -78,7 +78,7 @@ export function sql(sqlQuery) {
 
     try {
       const body = sqlQuery(state);
-      console.log('Executing SQL statement: ' + body);
+      console.log('Executing SQL statement.');
 
       return new Promise((resolve, reject) => {
         // execute a query on our database
