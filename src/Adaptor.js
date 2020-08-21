@@ -1,6 +1,6 @@
-import { execute as commonExecute, expandReferences } from "language-common";
-import { resolve as resolveUrl } from "url";
-import pg from "pg";
+import { execute as commonExecute, expandReferences } from 'language-common';
+import { resolve as resolveUrl } from 'url';
+import pg from 'pg';
 
 /** @module Adaptor */
 
@@ -22,7 +22,7 @@ export function execute(...operations) {
     data: null,
   };
 
-  return (state) => {
+  return state => {
     return commonExecute(
       createClient,
       connect,
@@ -73,12 +73,12 @@ function cleanupState(state) {
  * @returns {Operation}
  */
 export function sql(sqlQuery) {
-  return (state) => {
+  return state => {
     let { client } = state;
 
     try {
       const body = sqlQuery(state);
-      console.log("Executing SQL statement.");
+      console.log('Executing SQL statement.');
 
       return new Promise((resolve, reject) => {
         // execute a query on our database
@@ -92,7 +92,7 @@ export function sql(sqlQuery) {
             resolve(result);
           }
         });
-      }).then((data) => {
+      }).then(data => {
         const nextState = { ...state, response: { body: data } };
         return nextState;
       });
@@ -104,15 +104,15 @@ export function sql(sqlQuery) {
 }
 
 function escapeRegExp(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // $& means the whole matched string
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 function handleValues(sqlString, nullString) {
   if (nullString == false) {
     return sqlString;
   }
 
-  const re = new RegExp(escapeRegExp(nullString), "g");
-  return sqlString.replace(re, "NULL");
+  const re = new RegExp(escapeRegExp(nullString), 'g');
+  return sqlString.replace(re, 'NULL');
 }
 
 function handleOptions(options) {
@@ -135,7 +135,7 @@ function handleOptions(options) {
  * @returns {Operation}
  */
 export function insertMany(table, records, options) {
-  return (state) => {
+  return state => {
     let { client } = state;
 
     try {
@@ -143,18 +143,18 @@ export function insertMany(table, records, options) {
       // Note: we select the keys of the FIRST object as the canonical template.
       const columns = Object.keys(recordData[0]);
       const valueSets = recordData.map(
-        (x) => `('${Object.values(x).join("', '")}')`
+        x => `('${Object.values(x).join("', '")}')`
       );
 
       const query = handleValues(
-        `INSERT INTO ${table} (${columns.join(", ")}) VALUES ${valueSets.join(
-          ", "
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES ${valueSets.join(
+          ', '
         )};`,
         handleOptions(options)
       );
 
       const safeQuery = handleValues(
-        `INSERT INTO ${table} (${columns.join(", ")}) VALUES [--REDACTED--]`,
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES [--REDACTED--]`,
         handleOptions(options)
       );
 
@@ -171,7 +171,7 @@ export function insertMany(table, records, options) {
             resolve(result);
           }
         });
-      }).then((data) => {
+      }).then(data => {
         return { ...state, response: { body: data } };
       });
     } catch (e) {
@@ -198,7 +198,7 @@ export function insertMany(table, records, options) {
  * @returns {Operation}
  */
 export function upsert(table, uuid, record, options) {
-  return (state) => {
+  return state => {
     let { client } = state;
 
     try {
@@ -206,13 +206,13 @@ export function upsert(table, uuid, record, options) {
       const columns = Object.keys(recordData).sort();
 
       const updateValues = columns
-        .map((key) => `${key}='${recordData[key]}'`)
-        .join(", ");
+        .map(key => `${key}='${recordData[key]}'`)
+        .join(', ');
 
-      let values = columns.map((key) => recordData[key]).join("', '");
+      let values = columns.map(key => recordData[key]).join("', '");
 
       const query = handleValues(
-        `INSERT INTO ${table} (${columns.join(", ")}) VALUES ('${values}')
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES ('${values}')
         ON CONFLICT (${uuid})
         DO
           UPDATE SET ${updateValues};`,
@@ -220,7 +220,7 @@ export function upsert(table, uuid, record, options) {
       );
 
       const safeQuery = handleValues(
-        `INSERT INTO ${table} (${columns.join(", ")}) VALUES [--REDACTED--]
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES [--REDACTED--]
         ON CONFLICT (${uuid})
         DO
           UPDATE SET [--REDACTED--];`,
@@ -239,7 +239,7 @@ export function upsert(table, uuid, record, options) {
             resolve(result);
           }
         });
-      }).then((data) => {
+      }).then(data => {
         return { ...state, response: { body: data } };
       });
     } catch (e) {
@@ -261,4 +261,4 @@ export {
   lastReferenceValue,
   merge,
   sourceValue,
-} from "language-common";
+} from 'language-common';
