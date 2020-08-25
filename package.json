@@ -1,6 +1,6 @@
 {
   "name": "language-postgresql",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "A PostgreSQL Language Pack for OpenFn",
   "main": "lib/index.js",
   "scripts": {
@@ -15,7 +15,7 @@
   ],
   "dependencies": {
     "language-common": "github:openfn/language-common",
-    "pg": "^6.1.0"
+    "pg": "^8.3.2"
   },
   "devDependencies": {
     "@babel/cli": "^7.8.4",

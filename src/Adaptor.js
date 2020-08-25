@@ -34,10 +34,23 @@ export function execute(...operations) {
 }
 
 function createClient(state) {
-  const { host, port, database, password, user } = state.configuration;
+  const {
+    host,
+    port,
+    database,
+    password,
+    user,
+    ssl,
+    allowSelfSignedCert,
+  } = state.configuration;
+
+  // Allowing or blocking self signed certificate
+  const sslOptions = ssl
+    ? { ssl: { rejectUnauthorized: !allowSelfSignedCert } }
+    : false;
 
   // setup client config
-  var config = { host, port, database, user, password, ssl: true };
+  var config = { host, port, database, user, password, ssl: sslOptions };
 
   // instantiate a new client
   var client = new pg.Client(config);

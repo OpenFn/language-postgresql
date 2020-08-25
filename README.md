@@ -13,7 +13,8 @@ Language Pack for building expressions and operations to run PostgreSQL queries.
   "database": "wouldntyouliketoknow",
   "user": "me",
   "password": "noway",
-  "ssl": true
+  "ssl": true,
+  "allowSelfSignedCert": true
 }
 ```
 
@@ -51,7 +52,15 @@ insertMany('users', state =>
   })
 );
 ```
-## Insert or Update 
+## Insert or Update using a unique column as a key
+```js
+upsert("users", "email", {
+  email: "taylor@openfn.org",
+  first_name: "Taylor",
+  inserted_at: "2010-01-01 00:00:00",
+  updated_at: "2010-01-01 00:00:00",
+});
+```
 
 
 ## Development
