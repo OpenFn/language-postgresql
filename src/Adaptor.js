@@ -45,9 +45,7 @@ function createClient(state) {
   } = state.configuration;
 
   // Allowing or blocking self signed certificate
-  const sslOptions = ssl
-    ? { ssl: { rejectUnauthorized: !allowSelfSignedCert } }
-    : false;
+  const sslOptions = ssl ? { rejectUnauthorized: !allowSelfSignedCert } : false;
 
   // setup client config
   var config = { host, port, database, user, password, ssl: sslOptions };
