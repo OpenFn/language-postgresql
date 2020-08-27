@@ -134,6 +134,60 @@ function handleOptions(options) {
 }
 
 /**
+ * Insert a record
+ * @example
+ * execute(
+ *   insert(table, record, {setNull: "'undefined'"})
+ * )(state)
+ * @constructor
+ * @param {string} table - The target table
+ * @param {object} record - Payload data for the record as a JS object
+ * @param {object} options - Optional options argument
+ * @returns {Operation}
+ */
+export function insert(table, record, options) {
+  return state => {
+    const { client } = state;
+
+    try {
+      const recordData = expandReferences(record)(state);
+
+      const columns = Object.keys(recordData).sort();
+      const values = columns.map(key => recordData[key]).join("', '");
+
+      const query = handleValues(
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES ('${values}');`,
+        handleOptions(options)
+      );
+
+      const safeQuery = handleValues(
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES [--REDACTED--];`,
+        handleOptions(options)
+      );
+
+      return new Promise((resolve, reject) => {
+        console.log(`Executing insert via : ${safeQuery}`);
+
+        client.query(query, (err, result) => {
+          if (err) {
+            reject(err);
+            client.end();
+          } else {
+            console.log(result);
+            resolve(result);
+          }
+        });
+      }).then(data => {
+        return { ...state, response: { body: data } };
+      });
+    } catch (e) {
+      console.log(e);
+      client.end();
+    }
+  };
+}
+
+/**
  * Insert many records, using the keys of the first as the column template
  * @example
  * execute(
