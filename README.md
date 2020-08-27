@@ -38,30 +38,45 @@ sql(function (state) {
 });
 ```
 
+## Insert a single record
+
+This functions is used to insert a single record in postgres database.
+
+```js
+insert('users', {
+  email: 'antony@gmail.com',
+  first_name: 'Antony',
+  inserted_at: '2020-08-27 00:00:00',
+  updated_at: '2020-08-27 00:00:00',
+});
+```
+
 ## Insert many records in postgresql
+
 This function allows the insert of a set of records inside a table all at once.
 
 ```js
 insertMany('users', state =>
   state.data.people.map(s => {
     return {
-      first_name: ["taylor", "mamadou", "aleksa"],
+      first_name: ['Luca', 'Mohamed', 'Elodie'],
       inserted_at: '2020-01-01 00:00:00',
       updated_at: '2020-01-01 00:00:00',
     };
   })
 );
 ```
+
 ## Insert or Update using a unique column as a key
+
 ```js
-upsert("users", "email", {
-  email: "taylor@openfn.org",
-  first_name: "Taylor",
-  inserted_at: "2010-01-01 00:00:00",
-  updated_at: "2010-01-01 00:00:00",
+upsert('users', 'email', {
+  email: 'luca@openfn.org',
+  first_name: 'Luca',
+  inserted_at: '2010-01-01 00:00:00',
+  updated_at: '2010-01-01 00:00:00',
 });
 ```
-
 
 ## Development
 
