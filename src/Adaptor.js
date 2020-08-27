@@ -191,7 +191,7 @@ export function insert(table, record, options) {
  * Insert many records, using the keys of the first as the column template
  * @example
  * execute(
- *   insert(table, records, { setNull: false })
+ *   insertMany(table, records, { setNull: false })
  * )(state)
  * @constructor
  * @param {string} table - The target table

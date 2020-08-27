@@ -1,6 +1,6 @@
 {
   "name": "language-postgresql",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "A PostgreSQL Language Pack for OpenFn",
   "main": "lib/index.js",
   "scripts": {
