@@ -251,7 +251,7 @@ export function insertMany(table, records, options) {
  * @example
  * upsert(
  *  table, // the DB table
- *  uuid, // a DB column with a unique constraint
+ *  uuid, // a DB column with a unique constraint OR a CONSTRAINT NAME
  *  record,
  *  options
  * )
@@ -269,16 +269,16 @@ export function upsert(table, uuid, record, options) {
     try {
       const recordData = expandReferences(record)(state);
       const columns = Object.keys(recordData).sort();
+      const values = columns.map(key => recordData[key]).join("', '");
+      const conflict = uuid.split(' ').length > 1 ? uuid : `(${uuid})`;
 
       const updateValues = columns
         .map(key => `${key}='${recordData[key]}'`)
         .join(', ');
 
-      let values = columns.map(key => recordData[key]).join("', '");
-
       const query = handleValues(
         `INSERT INTO ${table} (${columns.join(', ')}) VALUES ('${values}')
-        ON CONFLICT (${uuid})
+        ON CONFLICT ${conflict}
         DO
           UPDATE SET ${updateValues};`,
         handleOptions(options)
@@ -286,7 +286,7 @@ export function upsert(table, uuid, record, options) {
 
       const safeQuery = handleValues(
         `INSERT INTO ${table} (${columns.join(', ')}) VALUES [--REDACTED--]
-        ON CONFLICT (${uuid})
+        ON CONFLICT ${conflict}
         DO
           UPDATE SET [--REDACTED--];`,
         handleOptions(options)
