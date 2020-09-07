@@ -1,6 +1,7 @@
 import { execute as commonExecute, expandReferences } from 'language-common';
 import { resolve as resolveUrl } from 'url';
 import pg from 'pg';
+import format from 'pg-format';
 
 /** @module Adaptor */
 
@@ -131,7 +132,7 @@ function handleOptions(options) {
   if (options && options.setNull === false) {
     return false;
   }
-  return "'undefined'";
+  return (options && options.setNull) || "'undefined'";
 }
 
 /**
@@ -209,18 +210,11 @@ export function insertMany(table, records, options) {
       // Note: we select the keys of the FIRST object as the canonical template.
       const columns = Object.keys(recordData[0]);
 
-      const valueSets = recordData.map(
-        x =>
-          `('${Object.values(x)
-            .map(x => (x == undefined ? 'undefined' : x))
-            .join("', '")}')`
-      );
+      const valueSets = recordData.map(x => Object.values(x));
 
-      const query = handleValues(
-        `INSERT INTO ${table} (${columns.join(', ')}) VALUES ${valueSets.join(
-          ', '
-        )};`,
-        handleOptions(options)
+      const query = format(
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES %L;`,
+        valueSets
       );
 
       const safeQuery = handleValues(
