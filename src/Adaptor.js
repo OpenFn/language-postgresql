@@ -313,6 +313,81 @@ export function upsert(table, uuid, record, options) {
   };
 }
 
+/**
+ * Insert or update multiple records using ON CONFLICT UPDATE and excluded
+ * @example
+ * upsert(
+ *  table, // the DB table
+ *  uuid, // a DB column with a unique constraint OR a CONSTRAINT NAME
+ *  record,
+ *  options
+ * )
+ * @constructor
+ * @param {string} table - The target table
+ * @param {string} uuid - The uuid column to determine a matching/existing record
+ * @param {object} records - A function that takes state and returns an array of records
+ * @param {object} options - Optional options argument
+ * @returns {Operation}
+ */
+export function upsertMany(table, uuid, records, options) {
+  return state => {
+    let { client } = state;
+
+    try {
+      // recordData = array
+      const recordData = records(state);
+
+      const columns = Object.keys(recordData[0]);
+      const values = recordData.map(x => Object.values(x));
+
+      const conflict = uuid.split(' ').length > 1 ? uuid : `(${uuid})`;
+
+      const updateValues = columns
+        .map(key => {
+          return `${key}=excluded.${key}`;
+        })
+        .join(', ');
+
+      const insertValues = format(
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES %L`,
+        values
+      );
+
+      const query = `${insertValues}
+        ON CONFLICT ${conflict}
+        DO
+          UPDATE SET ${updateValues};`;
+
+      const safeQuery = handleValues(
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES [--REDACTED--]
+        ON CONFLICT ${conflict}
+        DO
+          UPDATE SET [--REDACTED--];`,
+        handleOptions(options)
+      );
+
+      return new Promise((resolve, reject) => {
+        console.log(`Executing upsert via : ${safeQuery}`);
+
+        client.query(query, (err, result) => {
+          if (err) {
+            reject(err);
+            client.end();
+          } else {
+            console.log(result);
+            resolve(result);
+          }
+        });
+      }).then(data => {
+        return { ...state, response: { body: data } };
+      });
+    } catch (e) {
+      console.log(e);
+      client.end();
+    }
+  };
+}
+
 export {
   alterState,
   arrayToString,
