@@ -1,6 +1,7 @@
 import { execute as commonExecute, expandReferences } from 'language-common';
 import { resolve as resolveUrl } from 'url';
 import pg from 'pg';
+import format from 'pg-format';
 
 /** @module Adaptor */
 
@@ -117,6 +118,7 @@ export function sql(sqlQuery) {
 function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
+
 function handleValues(sqlString, nullString) {
   if (nullString == false) {
     return sqlString;
@@ -207,15 +209,12 @@ export function insertMany(table, records, options) {
       const recordData = records(state);
       // Note: we select the keys of the FIRST object as the canonical template.
       const columns = Object.keys(recordData[0]);
-      const valueSets = recordData.map(
-        x => `('${Object.values(x).join("', '")}')`
-      );
 
-      const query = handleValues(
-        `INSERT INTO ${table} (${columns.join(', ')}) VALUES ${valueSets.join(
-          ', '
-        )};`,
-        handleOptions(options)
+      const valueSets = recordData.map(x => Object.values(x));
+
+      const query = format(
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES %L;`,
+        valueSets
       );
 
       const safeQuery = handleValues(
