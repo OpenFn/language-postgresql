@@ -117,6 +117,7 @@ export function sql(sqlQuery) {
 function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
+
 function handleValues(sqlString, nullString) {
   if (nullString == false) {
     return sqlString;
@@ -130,7 +131,7 @@ function handleOptions(options) {
   if (options && options.setNull === false) {
     return false;
   }
-  return (options && options.setNull) || "'undefined'";
+  return "'undefined'";
 }
 
 /**
@@ -207,8 +208,12 @@ export function insertMany(table, records, options) {
       const recordData = records(state);
       // Note: we select the keys of the FIRST object as the canonical template.
       const columns = Object.keys(recordData[0]);
+
       const valueSets = recordData.map(
-        x => `('${Object.values(x).join("', '")}')`
+        x =>
+          `('${Object.values(x)
+            .map(x => (x == undefined ? 'undefined' : x))
+            .join("', '")}')`
       );
 
       const query = handleValues(
