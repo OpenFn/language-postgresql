@@ -155,11 +155,12 @@ export function insert(table, record, options) {
       const recordData = expandReferences(record)(state);
 
       const columns = Object.keys(recordData).sort();
-      const values = columns.map(key => recordData[key]).join("', '");
 
-      const query = handleValues(
-        `INSERT INTO ${table} (${columns.join(', ')}) VALUES ('${values}');`,
-        handleOptions(options)
+      const values = columns.map(key => recordData[key]);
+
+      const query = format(
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES (%L);`,
+        values
       );
 
       const safeQuery = handleValues(
@@ -268,20 +269,25 @@ export function upsert(table, uuid, record, options) {
     try {
       const recordData = expandReferences(record)(state);
       const columns = Object.keys(recordData).sort();
-      const values = columns.map(key => recordData[key]).join("', '");
+
+      const values = columns.map(key => recordData[key]);
       const conflict = uuid.split(' ').length > 1 ? uuid : `(${uuid})`;
 
       const updateValues = columns
-        .map(key => `${key}='${recordData[key]}'`)
+        .map(key => {
+          return `${key}=excluded.${key}`;
+        })
         .join(', ');
 
-      const query = handleValues(
-        `INSERT INTO ${table} (${columns.join(', ')}) VALUES ('${values}')
-        ON CONFLICT ${conflict}
-        DO
-          UPDATE SET ${updateValues};`,
-        handleOptions(options)
+      const insertValues = format(
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES (%L)`,
+        values
       );
+
+      const query = `${insertValues}
+          ON CONFLICT ${conflict}
+          DO
+            UPDATE SET ${updateValues};`;
 
       const safeQuery = handleValues(
         `INSERT INTO ${table} (${columns.join(', ')}) VALUES [--REDACTED--]
