@@ -115,58 +115,31 @@ export function sql(sqlQuery) {
   };
 }
 
-function escapeRegExp(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
-}
-
-function handleValues(sqlString, nullString) {
-  if (nullString == false) {
-    return sqlString;
-  }
-
-  const re = new RegExp(escapeRegExp(nullString), 'g');
-  return sqlString.replace(re, 'NULL');
-}
-
-function handleOptions(options) {
-  if (options && options.setNull === false) {
-    return false;
-  }
-  return (options && options.setNull) || "'undefined'";
-}
-
 /**
  * Insert a record
  * @example
- * execute(
- *   insert(table, record, {setNull: "'undefined'"})
- * )(state)
+ * insert('users', {name: 'Elodie', id: 7});
  * @constructor
  * @param {string} table - The target table
  * @param {object} record - Payload data for the record as a JS object
- * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function insert(table, record, options) {
+export function insert(table, record) {
   return state => {
     const { client } = state;
 
     try {
       const recordData = expandReferences(record)(state);
-
       const columns = Object.keys(recordData).sort();
-
+      const columnsList = columns.join(', ');
       const values = columns.map(key => recordData[key]);
 
       const query = format(
-        `INSERT INTO ${table} (${columns.join(', ')}) VALUES (%L);`,
+        `INSERT INTO ${table} (${columnsList}) VALUES (%L);`,
         values
       );
 
-      const safeQuery = handleValues(
-        `INSERT INTO ${table} (${columns.join(', ')}) VALUES [--REDACTED--];`,
-        handleOptions(options)
-      );
+      const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]];`;
 
       return new Promise((resolve, reject) => {
         console.log(`Executing insert via : ${safeQuery}`);
@@ -193,16 +166,13 @@ export function insert(table, record, options) {
 /**
  * Insert many records, using the keys of the first as the column template
  * @example
- * execute(
- *   insertMany(table, records, { setNull: false })
- * )(state)
+ * insertMany('users', state => state.data.recordArray);
  * @constructor
  * @param {string} table - The target table
  * @param {function} records - A function that takes state and returns an array of records
- * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function insertMany(table, records, options) {
+export function insertMany(table, records) {
   return state => {
     let { client } = state;
 
@@ -210,18 +180,15 @@ export function insertMany(table, records, options) {
       const recordData = records(state);
       // Note: we select the keys of the FIRST object as the canonical template.
       const columns = Object.keys(recordData[0]);
-
+      const columnsList = columns.join(', ');
       const valueSets = recordData.map(x => Object.values(x));
 
       const query = format(
-        `INSERT INTO ${table} (${columns.join(', ')}) VALUES %L;`,
+        `INSERT INTO ${table} (${columnsList}) VALUES %L;`,
         valueSets
       );
 
-      const safeQuery = handleValues(
-        `INSERT INTO ${table} (${columns.join(', ')}) VALUES [--REDACTED--]`,
-        handleOptions(options)
-      );
+      const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]];`;
 
       return new Promise((resolve, reject) => {
         console.log(`Executing insert many via: ${safeQuery}`);
@@ -250,26 +217,24 @@ export function insertMany(table, records, options) {
  * Insert or update a record using ON CONFLICT UPDATE
  * @example
  * upsert(
- *  table, // the DB table
- *  uuid, // a DB column with a unique constraint OR a CONSTRAINT NAME
- *  record,
- *  options
+ *  'users', // the DB table
+ *  'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME
+ *  {name: 'Elodie', id: 7}
  * )
  * @constructor
  * @param {string} table - The target table
  * @param {string} uuid - The uuid column to determine a matching/existing record
  * @param {object} record - Payload data for the record as a JS object
- * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function upsert(table, uuid, record, options) {
+export function upsert(table, uuid, record) {
   return state => {
     let { client } = state;
 
     try {
       const recordData = expandReferences(record)(state);
       const columns = Object.keys(recordData).sort();
-
+      const columnsList = columns.join(', ');
       const values = columns.map(key => recordData[key]);
       const conflict = uuid.split(' ').length > 1 ? uuid : `(${uuid})`;
 
@@ -280,22 +245,17 @@ export function upsert(table, uuid, record, options) {
         .join(', ');
 
       const insertValues = format(
-        `INSERT INTO ${table} (${columns.join(', ')}) VALUES (%L)`,
+        `INSERT INTO ${table} (${columnsList}) VALUES (%L)`,
         values
       );
 
       const query = `${insertValues}
-          ON CONFLICT ${conflict}
-          DO
-            UPDATE SET ${updateValues};`;
-
-      const safeQuery = handleValues(
-        `INSERT INTO ${table} (${columns.join(', ')}) VALUES [--REDACTED--]
         ON CONFLICT ${conflict}
-        DO
-          UPDATE SET [--REDACTED--];`,
-        handleOptions(options)
-      );
+        DO UPDATE SET ${updateValues};`;
+
+      const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]
+        ON CONFLICT ${conflict}
+        DO UPDATE SET ${updateValues};`;
 
       return new Promise((resolve, reject) => {
         console.log(`Executing upsert via : ${safeQuery}`);
@@ -323,29 +283,25 @@ export function upsert(table, uuid, record, options) {
  * Insert or update multiple records using ON CONFLICT UPDATE and excluded
  * @example
  * upsert(
- *  table, // the DB table
- *  uuid, // a DB column with a unique constraint OR a CONSTRAINT NAME
- *  record,
- *  options
+ *  'users', // the DB table
+ *  'email', // a DB column with a unique constraint OR a CONSTRAINT NAME
+ *  state => state.data.usersArray
  * )
  * @constructor
  * @param {string} table - The target table
  * @param {string} uuid - The uuid column to determine a matching/existing record
- * @param {object} records - A function that takes state and returns an array of records
- * @param {object} options - Optional options argument
+ * @param {function} records - A function that takes state and returns an array of records
  * @returns {Operation}
  */
-export function upsertMany(table, uuid, records, options) {
+export function upsertMany(table, uuid, records) {
   return state => {
     let { client } = state;
 
     try {
-      // recordData = array
       const recordData = records(state);
-
       const columns = Object.keys(recordData[0]);
+      const columnsList = columns.join(', ');
       const values = recordData.map(x => Object.values(x));
-
       const conflict = uuid.split(' ').length > 1 ? uuid : `(${uuid})`;
 
       const updateValues = columns
@@ -355,22 +311,17 @@ export function upsertMany(table, uuid, records, options) {
         .join(', ');
 
       const insertValues = format(
-        `INSERT INTO ${table} (${columns.join(', ')}) VALUES %L`,
+        `INSERT INTO ${table} (${columnsList}) VALUES %L`,
         values
       );
 
       const query = `${insertValues}
         ON CONFLICT ${conflict}
-        DO
-          UPDATE SET ${updateValues};`;
+        DO UPDATE SET ${updateValues};`;
 
-      const safeQuery = handleValues(
-        `INSERT INTO ${table} (${columns.join(', ')}) VALUES [--REDACTED--]
+      const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]
         ON CONFLICT ${conflict}
-        DO
-          UPDATE SET [--REDACTED--];`,
-        handleOptions(options)
-      );
+        DO UPDATE SET ${updateValues};`;
 
       return new Promise((resolve, reject) => {
         console.log(`Executing upsert via : ${safeQuery}`);

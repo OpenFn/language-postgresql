@@ -25,8 +25,8 @@ Execute an sql query.
 #### sample usage
 
 ```js
-sql(function (state) {
-  return (
+sql(
+  state =>
     `INSERT INTO untitled_table (name, the_geom) VALUES ('` +
     dataValue('form.first_name')(state) +
     `', ST_SetSRID(ST_Point(` +
@@ -34,8 +34,7 @@ sql(function (state) {
     `, ` +
     dataValue('long')(state) +
     `),4326))`
-  );
-});
+);
 ```
 
 ## Insert a single record
@@ -48,6 +47,17 @@ insert('users', {
   first_name: 'Antony',
   inserted_at: '2020-08-27 00:00:00',
   updated_at: '2020-08-27 00:00:00',
+});
+```
+
+## Insert or Update using a unique column as a key
+
+```js
+upsert('users', 'email', {
+  email: 'luca@openfn.org',
+  first_name: 'Luca',
+  inserted_at: '2010-01-01 00:00:00',
+  updated_at: '2010-01-01 00:00:00',
 });
 ```
 
@@ -67,15 +77,20 @@ insertMany('users', state =>
 );
 ```
 
-## Insert or Update using a unique column as a key
+## Upsert many records in postgresql
+
+This function allows the upsert of a set of records inside a table all at once.
 
 ```js
-upsert('users', 'email', {
-  email: 'luca@openfn.org',
-  first_name: 'Luca',
-  inserted_at: '2010-01-01 00:00:00',
-  updated_at: '2010-01-01 00:00:00',
-});
+upsertMany('users', 'ON CONSTRAINT users_pkey', state =>
+  state.data.people.map(s => {
+    return {
+      first_name: ['Luca', 'Mohamed', 'Elodie'],
+      inserted_at: '2020-01-01 00:00:00',
+      updated_at: '2020-01-01 00:00:00',
+    };
+  })
+);
 ```
 
 ## Development
