@@ -155,11 +155,12 @@ export function insert(table, record, options) {
       const recordData = expandReferences(record)(state);
 
       const columns = Object.keys(recordData).sort();
-      const values = columns.map(key => recordData[key]).join("', '");
 
-      const query = handleValues(
-        `INSERT INTO ${table} (${columns.join(', ')}) VALUES ('${values}');`,
-        handleOptions(options)
+      const values = columns.map(key => recordData[key]);
+
+      const query = format(
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES (%L);`,
+        values
       );
 
       const safeQuery = handleValues(
