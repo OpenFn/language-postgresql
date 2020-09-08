@@ -268,22 +268,16 @@ export function upsert(table, uuid, record, options) {
 
     try {
       const recordData = expandReferences(record)(state);
-      console.log(recordData);
       const columns = Object.keys(recordData).sort();
-      console.log(columns);
+
       const values = columns.map(key => recordData[key]);
-      console.log(values);
       const conflict = uuid.split(' ').length > 1 ? uuid : `(${uuid})`;
 
       const updateValues = columns
-      .map(key => {
-        return `${key}=excluded.${key}`;
-      })
-      .join(', ');
-
-      /* const updateValues = columns
-        .map(key => `${key}='${recordData[key]}'`)
-        .join(', '); */
+        .map(key => {
+          return `${key}=excluded.${key}`;
+        })
+        .join(', ');
 
       const insertValues = format(
         `INSERT INTO ${table} (${columns.join(', ')}) VALUES (%L)`,
@@ -295,14 +289,6 @@ export function upsert(table, uuid, record, options) {
           DO
             UPDATE SET ${updateValues};`;
 
-      /* const query = handleValues(
-        `INSERT INTO ${table} (${columns.join(', ')}) VALUES ('${values}')
-        ON CONFLICT ${conflict}
-        DO
-          UPDATE SET ${updateValues};`,
-        handleOptions(options)
-      ); */
-
       const safeQuery = handleValues(
         `INSERT INTO ${table} (${columns.join(', ')}) VALUES [--REDACTED--]
         ON CONFLICT ${conflict}
@@ -312,7 +298,7 @@ export function upsert(table, uuid, record, options) {
       );
 
       return new Promise((resolve, reject) => {
-        console.log(`Executing upsert via : ${query}`);
+        console.log(`Executing upsert via : ${safeQuery}`);
 
         client.query(query, (err, result) => {
           if (err) {
