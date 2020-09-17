@@ -345,6 +345,58 @@ export function upsertMany(table, uuid, records) {
   };
 }
 
+/**
+ * Create a table in database when given a form definition.
+ * @example
+ * insertForm(
+ *  state => state.data.koboColumns
+ * )
+ * @constructor
+ * @param {function} records - An array of form columns
+ * @returns {Operation}
+ */
+export function insertForm(records) {
+  return state => {
+    let { client } = state;
+
+    try {
+      const recordData = records(state);
+      const structureData = recordData
+        .map(
+          x =>
+            `${x.name === 'group' ? 'thegroup' : x.name} ${x.type} ${
+              x.required ? 'NOT NULL' : ''
+            }`
+        )
+        .join(', ');
+      console.log(structureData);
+
+      const query = `CREATE TABLE IF NOT EXISTS tbl_survey (
+        ${structureData}
+      );`;
+
+      return new Promise((resolve, reject) => {
+        console.log(`Creating table via : ${query}`);
+
+        client.query(query, (err, result) => {
+          if (err) {
+            reject(err);
+            client.end();
+          } else {
+            console.log(result);
+            resolve(result);
+          }
+        });
+      }).then(data => {
+        return { ...state, response: { body: data } };
+      });
+    } catch (e) {
+      console.log(e);
+      client.end();
+    }
+  };
+}
+
 export {
   alterState,
   arrayToString,
