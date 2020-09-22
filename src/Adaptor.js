@@ -348,9 +348,7 @@ export function upsertMany(table, uuid, records) {
 /**
  * List the columns of a table in a database.
  * @example
- * describeTable(
- * 'table_name'
- * )
+ * describeTable('table_name')
  * @constructor
  * @param {string} table - The name of the table to describe
  * @returns {Operation}
@@ -389,15 +387,13 @@ export function describeTable(table) {
 /**
  * Create a table in database when given a form definition and a table_name.
  * @example
- * insertTable(
- *  state => state.data.koboColumns, 'table_name'
- * )
+ * insertTable('table_name', state => state.data.koboColumns)
  * @constructor
+ * @param {string} table - The new table to create
  * @param {function} records - An array of form columns
- * @param {function} table - The new table to create
  * @returns {Operation}
  */
-export function insertTable(records, table) {
+export function insertTable(table, records) {
   return state => {
     let { client } = state;
 
@@ -436,15 +432,13 @@ export function insertTable(records, table) {
 /**
  * Alter an existing table in the database.
  * @example
- * modifyTable(
- *  state => state.data.koboColumns, 'table_name'
- * )
+ * modifyTable('table_name', state => state.data.koboColumns)
  * @constructor
- * @param {function} records - An array of form columns
  * @param {string} table - The name of the table to alter
+ * @param {function} records - An array of form columns
  * @returns {Operation}
  */
-export function modifyTable(records, table) {
+export function modifyTable(table, records) {
   return state => {
     let { client } = state;
 
