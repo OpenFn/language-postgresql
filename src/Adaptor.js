@@ -346,16 +346,105 @@ export function upsertMany(table, uuid, records) {
 }
 
 /**
- * Create a table in database when given a form definition.
+ * List the columns of a table in a database.
  * @example
- * insertForm(
- *  state => state.data.koboColumns
+ * describeTable(
+ * 'table_name'
+ * )
+ * @constructor
+ * @param {string} table - The name of the table to describe
+ * @returns {Operation}
+ */
+export function describeTable(table) {
+  return state => {
+    let { client } = state;
+
+    try {
+      const query = `SELECT column_name, udt_name, is_nullable
+        FROM information_schema.columns
+        WHERE table_name='${table}';`;
+
+      return new Promise((resolve, reject) => {
+        console.log(`Describing table via : ${query}`);
+
+        client.query(query, (err, result) => {
+          if (err) {
+            reject(err);
+            client.end();
+          } else {
+            //console.log(result);
+            resolve(result);
+          }
+        });
+      }).then(data => {
+        return { ...state, table_data: { body: data } };
+      });
+    } catch (e) {
+      console.log(e);
+      client.end();
+    }
+  };
+}
+
+/**
+ * Create a table in database when given a form definition and a table_name.
+ * @example
+ * insertTable(
+ *  state => state.data.koboColumns, 'table_name'
  * )
  * @constructor
  * @param {function} records - An array of form columns
+ * @param {function} table - The new table to create
  * @returns {Operation}
  */
-export function insertForm(records) {
+export function insertTable(records, table) {
+  return state => {
+    let { client } = state;
+
+    try {
+      const recordData = records(state);
+      const structureData = recordData
+        .map(x => `${x.name} ${x.type} ${x.required ? 'NOT NULL' : ''}`)
+        .join(', ');
+
+      const query = `CREATE TABLE ${table} (
+        ${structureData}
+      );`;
+
+      return new Promise((resolve, reject) => {
+        console.log(`Creating table via : ${query}`);
+
+        client.query(query, (err, result) => {
+          if (err) {
+            reject(err);
+            client.end();
+          } else {
+            console.log(result);
+            resolve(result);
+          }
+        });
+      }).then(data => {
+        return { ...state, response: { body: data } };
+      });
+    } catch (e) {
+      console.log(e);
+      client.end();
+    }
+  };
+}
+
+/**
+ * Alter an existing table in the database.
+ * @example
+ * modifyTable(
+ *  state => state.data.koboColumns, 'table_name'
+ * )
+ * @constructor
+ * @param {function} records - An array of form columns
+ * @param {string} table - The name of the table to alter
+ * @returns {Operation}
+ */
+export function modifyTable(records, table) {
   return state => {
     let { client } = state;
 
@@ -363,20 +452,16 @@ export function insertForm(records) {
       const recordData = records(state);
       const structureData = recordData
         .map(
-          x =>
-            `${x.name === 'group' ? 'thegroup' : x.name} ${x.type} ${
-              x.required ? 'NOT NULL' : ''
-            }`
+          x => `ADD COLUMN ${x.name} ${x.type} ${x.required ? 'NOT NULL' : ''}`
         )
         .join(', ');
-      console.log(structureData);
 
-      const query = `CREATE TABLE IF NOT EXISTS tbl_survey (
+      const query = `ALTER TABLE ${table}
         ${structureData}
-      );`;
+      ;`;
 
       return new Promise((resolve, reject) => {
-        console.log(`Creating table via : ${query}`);
+        console.log(`Altering table via : ${query}`);
 
         client.query(query, (err, result) => {
           if (err) {
