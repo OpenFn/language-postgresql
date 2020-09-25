@@ -30,7 +30,11 @@ export function execute(...operations) {
       ...operations,
       disconnect,
       cleanupState
-    )({ ...initialState, ...state });
+    )({ ...initialState, ...state }).catch(e => {
+      console.error(e);
+      console.error('Unhandled error in the operations. Exiting process.');
+      process.exit(1);
+    });
   };
 }
 
