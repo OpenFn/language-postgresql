@@ -80,6 +80,7 @@ function cleanupState(state) {
 
 /**
  * Execute an SQL statement
+ * @public
  * @example
  * execute(
  *   sql(sqlQuery)
@@ -121,6 +122,7 @@ export function sql(sqlQuery) {
 
 /**
  * Insert a record
+ * @public
  * @example
  * insert('users', {name: 'Elodie', id: 7});
  * @constructor
@@ -169,6 +171,7 @@ export function insert(table, record) {
 
 /**
  * Insert many records, using the keys of the first as the column template
+ * @public
  * @example
  * insertMany('users', state => state.data.recordArray);
  * @constructor
@@ -219,6 +222,7 @@ export function insertMany(table, records) {
 
 /**
  * Insert or update a record using ON CONFLICT UPDATE
+ * @public
  * @example
  * upsert(
  *  'users', // the DB table
@@ -285,6 +289,7 @@ export function upsert(table, uuid, record) {
 
 /**
  * Insert or update multiple records using ON CONFLICT UPDATE and excluded
+ * @public
  * @example
  * upsert(
  *  'users', // the DB table
@@ -351,6 +356,7 @@ export function upsertMany(table, uuid, records) {
 
 /**
  * List the columns of a table in a database.
+ * @public
  * @example
  * describeTable('table_name')
  * @constructor
@@ -390,6 +396,7 @@ export function describeTable(table) {
 
 /**
  * Create a table in database when given a form definition and a table_name.
+ * @public
  * @example
  * insertTable('table_name', state => state.data.koboColumns)
  * @constructor
@@ -435,6 +442,7 @@ export function insertTable(table, records) {
 
 /**
  * Alter an existing table in the database.
+ * @public
  * @example
  * modifyTable('table_name', state => state.data.koboColumns)
  * @constructor
