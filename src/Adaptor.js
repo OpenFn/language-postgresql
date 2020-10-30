@@ -431,7 +431,11 @@ export function insertTable(table, records) {
           }
         });
       }).then(data => {
-        return { ...state, response: { body: data } };
+        return {
+          ...state,
+          references: [...references, query],
+          response: { body: data },
+        };
       });
     } catch (e) {
       console.log(e);
@@ -479,7 +483,11 @@ export function modifyTable(table, records) {
           }
         });
       }).then(data => {
-        return { ...state, response: { body: data } };
+        return {
+          ...state,
+          references: [...references, query],
+          response: { body: data },
+        };
       });
     } catch (e) {
       console.log(e);
