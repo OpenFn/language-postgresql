@@ -433,7 +433,7 @@ export function insertTable(table, records) {
       }).then(data => {
         return {
           ...state,
-          references: [...references, query],
+          references: [...state.references, query],
           response: { body: data },
         };
       });
@@ -485,7 +485,7 @@ export function modifyTable(table, records) {
       }).then(data => {
         return {
           ...state,
-          references: [...references, query],
+          references: [...state.references, query],
           response: { body: data },
         };
       });
