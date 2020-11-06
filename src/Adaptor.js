@@ -21,6 +21,7 @@ export function execute(...operations) {
   const initialState = {
     references: [],
     data: null,
+    queries: [],
   };
 
   return state => {
@@ -227,15 +228,17 @@ export function insertMany(table, records) {
  * upsert(
  *  'users', // the DB table
  *  'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME
- *  {name: 'Elodie', id: 7}
+ *  {name: 'Elodie', id: 7},
+ *  {writeSql:true, execute: true}
  * )
  * @constructor
  * @param {string} table - The target table
  * @param {string} uuid - The uuid column to determine a matching/existing record
  * @param {object} record - Payload data for the record as a JS object
+ * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function upsert(table, uuid, record) {
+export function upsert(table, uuid, record, options) {
   return state => {
     let { client } = state;
 
@@ -265,21 +268,35 @@ export function upsert(table, uuid, record) {
         ON CONFLICT ${conflict}
         DO UPDATE SET ${updateValues};`;
 
-      return new Promise((resolve, reject) => {
-        console.log(`Executing upsert via : ${safeQuery}`);
+      execute = () => {
+        return new Promise((resolve, reject) => {
+          console.log(`Executing upsert via : ${safeQuery}`);
 
-        client.query(query, (err, result) => {
-          if (err) {
-            reject(err);
-            client.end();
-          } else {
-            console.log(result);
-            resolve(result);
-          }
+          client.query(query, (err, result) => {
+            if (err) {
+              reject(err);
+              client.end();
+            } else {
+              console.log(result);
+              resolve(result);
+            }
+          });
+        }).then(data => {
+          return { ...state, response: { body: data } };
         });
-      }).then(data => {
-        return { ...state, response: { body: data } };
-      });
+      };
+
+      if (options) {
+        if (options.writeSql) {
+          state.queries.push(query);
+        }
+        if (options.execute) {
+          return execute();
+        }
+      } else {
+        return execute();
+      }
+      return state;
     } catch (e) {
       console.log(e);
       client.end();
@@ -334,7 +351,6 @@ export function upsertMany(table, uuid, records) {
 
       return new Promise((resolve, reject) => {
         console.log(`Executing upsert via : ${safeQuery}`);
-
         client.query(query, (err, result) => {
           if (err) {
             reject(err);
