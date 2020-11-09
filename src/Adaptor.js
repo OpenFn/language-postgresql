@@ -79,8 +79,19 @@ function cleanupState(state) {
   return state;
 }
 
-function runQuery(state, client, query) {
+function queryHandler(state, query, options) {
+  const { client } = state;
   return new Promise((resolve, reject) => {
+    if (options.writeSql) {
+      console.log('Adding prepared SQL to state.queries array.');
+      state.queries.push(query);
+    }
+
+    if (options.execute === false) {
+      console.log('Not executing query; options.execute === false');
+      resolve('Query not executed.');
+    }
+
     client.query(query, (err, result) => {
       if (err) {
         reject(err);
@@ -284,19 +295,8 @@ export function upsert(table, uuid, record, options) {
         ON CONFLICT ${conflict}
         DO UPDATE SET ${updateValues};`;
 
-      if (options) {
-        if (options.writeSql) {
-          state.queries.push(query);
-        }
-        if (options.execute) {
-          console.log(`Executing upsert via : ${query}`);
-          return runQuery(state, client, query);
-        }
-      } else {
-        console.log(`Executing upsert via : ${query}`);
-        return runQuery(state, client, query);
-      }
-      return state;
+      console.log('Preparing to upsert via:', safeQuery);
+      return queryHandler(state, query, options);
     } catch (e) {
       console.log(e);
       client.end();
