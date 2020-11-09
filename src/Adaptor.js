@@ -79,6 +79,22 @@ function cleanupState(state) {
   return state;
 }
 
+function runQuery(state, client, query) {
+  return new Promise((resolve, reject) => {
+    client.query(query, (err, result) => {
+      if (err) {
+        reject(err);
+        client.end();
+      } else {
+        console.log(result);
+        resolve(result);
+      }
+    });
+  }).then(data => {
+    return { ...state, response: { body: data } };
+  });
+}
+
 /**
  * Execute an SQL statement
  * @public
@@ -268,33 +284,17 @@ export function upsert(table, uuid, record, options) {
         ON CONFLICT ${conflict}
         DO UPDATE SET ${updateValues};`;
 
-      execute = () => {
-        return new Promise((resolve, reject) => {
-          console.log(`Executing upsert via : ${safeQuery}`);
-
-          client.query(query, (err, result) => {
-            if (err) {
-              reject(err);
-              client.end();
-            } else {
-              console.log(result);
-              resolve(result);
-            }
-          });
-        }).then(data => {
-          return { ...state, response: { body: data } };
-        });
-      };
-
       if (options) {
         if (options.writeSql) {
           state.queries.push(query);
         }
         if (options.execute) {
-          return execute();
+          console.log(`Executing upsert via : ${query}`);
+          return runQuery(state, client, query);
         }
       } else {
-        return execute();
+        console.log(`Executing upsert via : ${query}`);
+        return runQuery(state, client, query);
       }
       return state;
     } catch (e) {
