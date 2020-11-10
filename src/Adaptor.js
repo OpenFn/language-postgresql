@@ -113,10 +113,11 @@ function queryHandler(state, query, options) {
  * @public
  * @example
  * execute(
- *   sql(sqlQuery)
+ *   sql(sqlQuery, { writeSql: true })
  * )(state)
  * @constructor
- * @param {object} sqlQuery - Payload data for the message
+ * @param {function} sqlQuery - a function which takes state and returns a
+ * string of SQL.
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -375,7 +376,7 @@ export function insertTable(table, records, options) {
         ${structureData}
       );`;
 
-      console.log('Creating table via:', query);
+      console.log('Preparing to create table via:', query);
       return queryHandler(state, query, options);
     } catch (e) {
       console.log(e);
@@ -411,7 +412,7 @@ export function modifyTable(table, records, options) {
         ${structureData}
       ;`;
 
-      console.log('Creating table via:', query);
+      console.log('Preparing to modify table via:', query);
       return queryHandler(state, query, options);
     } catch (e) {
       console.log(e);
