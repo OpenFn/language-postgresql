@@ -21,6 +21,7 @@ export function execute(...operations) {
   const initialState = {
     references: [],
     data: null,
+    queries: [],
   };
 
   return state => {
@@ -78,41 +79,57 @@ function cleanupState(state) {
   return state;
 }
 
+function queryHandler(state, query, options) {
+  const { client } = state;
+  return new Promise((resolve, reject) => {
+    if (options) {
+      if (options.writeSql) {
+        console.log('Adding prepared SQL to state.queries array.');
+        state.queries.push(query);
+      }
+
+      if (options.execute === false) {
+        console.log('Not executing query; options.execute === false');
+        resolve('Query not executed.');
+      }
+    }
+
+    client.query(query, (err, result) => {
+      if (err) {
+        reject(err);
+        client.end();
+      } else {
+        console.log(result);
+        resolve(result);
+      }
+    });
+  }).then(data => {
+    return { ...state, response: { body: data } };
+  });
+}
+
 /**
  * Execute an SQL statement
  * @public
  * @example
  * execute(
- *   sql(sqlQuery)
+ *   sql(sqlQuery, { writeSql: true })
  * )(state)
  * @constructor
- * @param {object} sqlQuery - Payload data for the message
+ * @param {function} sqlQuery - a function which takes state and returns a
+ * string of SQL.
+ * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function sql(sqlQuery) {
+export function sql(sqlQuery, options) {
   return state => {
     let { client } = state;
 
     try {
       const body = sqlQuery(state);
-      console.log('Executing SQL statement.');
 
-      return new Promise((resolve, reject) => {
-        // execute a query on our database
-        client.query(body, function (err, result) {
-          if (err) {
-            reject(err);
-            // Disconnect if there's an error.
-            client.end();
-          } else {
-            console.log(result);
-            resolve(result);
-          }
-        });
-      }).then(data => {
-        const nextState = { ...state, response: { body: data } };
-        return nextState;
-      });
+      console.log('Preparing to execute sql statement');
+      return queryHandler(state, body, options);
     } catch (e) {
       console.log(e);
       client.end();
@@ -128,9 +145,10 @@ export function sql(sqlQuery) {
  * @constructor
  * @param {string} table - The target table
  * @param {object} record - Payload data for the record as a JS object
+ * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function insert(table, record) {
+export function insert(table, record, options) {
   return state => {
     const { client } = state;
 
@@ -147,21 +165,8 @@ export function insert(table, record) {
 
       const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]];`;
 
-      return new Promise((resolve, reject) => {
-        console.log(`Executing insert via : ${safeQuery}`);
-
-        client.query(query, (err, result) => {
-          if (err) {
-            reject(err);
-            client.end();
-          } else {
-            console.log(result);
-            resolve(result);
-          }
-        });
-      }).then(data => {
-        return { ...state, response: { body: data } };
-      });
+      console.log('Preparing to insert via:', safeQuery);
+      return queryHandler(state, query, options);
     } catch (e) {
       console.log(e);
       client.end();
@@ -177,9 +182,10 @@ export function insert(table, record) {
  * @constructor
  * @param {string} table - The target table
  * @param {function} records - A function that takes state and returns an array of records
+ * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function insertMany(table, records) {
+export function insertMany(table, records, options) {
   return state => {
     let { client } = state;
 
@@ -197,22 +203,8 @@ export function insertMany(table, records) {
 
       const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]];`;
 
-      return new Promise((resolve, reject) => {
-        console.log(`Executing insert many via: ${safeQuery}`);
-        // execute a query on our database
-        client.query(query, (err, result) => {
-          if (err) {
-            reject(err);
-            // Disconnect if there's an error.
-            client.end();
-          } else {
-            console.log(result);
-            resolve(result);
-          }
-        });
-      }).then(data => {
-        return { ...state, response: { body: data } };
-      });
+      console.log('Preparing to insertMany via:', safeQuery);
+      return queryHandler(state, query, options);
     } catch (e) {
       console.log(e);
       client.end();
@@ -227,15 +219,17 @@ export function insertMany(table, records) {
  * upsert(
  *  'users', // the DB table
  *  'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME
- *  {name: 'Elodie', id: 7}
+ *  {name: 'Elodie', id: 7},
+ *  {writeSql:true, execute: true}
  * )
  * @constructor
  * @param {string} table - The target table
  * @param {string} uuid - The uuid column to determine a matching/existing record
  * @param {object} record - Payload data for the record as a JS object
+ * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function upsert(table, uuid, record) {
+export function upsert(table, uuid, record, options) {
   return state => {
     let { client } = state;
 
@@ -265,21 +259,8 @@ export function upsert(table, uuid, record) {
         ON CONFLICT ${conflict}
         DO UPDATE SET ${updateValues};`;
 
-      return new Promise((resolve, reject) => {
-        console.log(`Executing upsert via : ${safeQuery}`);
-
-        client.query(query, (err, result) => {
-          if (err) {
-            reject(err);
-            client.end();
-          } else {
-            console.log(result);
-            resolve(result);
-          }
-        });
-      }).then(data => {
-        return { ...state, response: { body: data } };
-      });
+      console.log('Preparing to upsert via:', safeQuery);
+      return queryHandler(state, query, options);
     } catch (e) {
       console.log(e);
       client.end();
@@ -300,9 +281,10 @@ export function upsert(table, uuid, record) {
  * @param {string} table - The target table
  * @param {string} uuid - The uuid column to determine a matching/existing record
  * @param {function} records - A function that takes state and returns an array of records
+ * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function upsertMany(table, uuid, records) {
+export function upsertMany(table, uuid, records, options) {
   return state => {
     let { client } = state;
 
@@ -332,21 +314,8 @@ export function upsertMany(table, uuid, records) {
         ON CONFLICT ${conflict}
         DO UPDATE SET ${updateValues};`;
 
-      return new Promise((resolve, reject) => {
-        console.log(`Executing upsert via : ${safeQuery}`);
-
-        client.query(query, (err, result) => {
-          if (err) {
-            reject(err);
-            client.end();
-          } else {
-            console.log(result);
-            resolve(result);
-          }
-        });
-      }).then(data => {
-        return { ...state, response: { body: data } };
-      });
+      console.log('Preparing to upsert via:', safeQuery);
+      return queryHandler(state, query, options);
     } catch (e) {
       console.log(e);
       client.end();
@@ -361,9 +330,10 @@ export function upsertMany(table, uuid, records) {
  * describeTable('table_name')
  * @constructor
  * @param {string} table - The name of the table to describe
+ * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function describeTable(table) {
+export function describeTable(table, options) {
   return state => {
     let { client } = state;
 
@@ -372,21 +342,8 @@ export function describeTable(table) {
         FROM information_schema.columns
         WHERE table_name='${table}';`;
 
-      return new Promise((resolve, reject) => {
-        console.log(`Describing table via : ${query}`);
-
-        client.query(query, (err, result) => {
-          if (err) {
-            reject(err);
-            client.end();
-          } else {
-            //console.log(result);
-            resolve(result);
-          }
-        });
-      }).then(data => {
-        return { ...state, table_data: { body: data } };
-      });
+      console.log('Preparing to describle table via:', query);
+      return queryHandler(state, query, options);
     } catch (e) {
       console.log(e);
       client.end();
@@ -402,9 +359,10 @@ export function describeTable(table) {
  * @constructor
  * @param {string} table - The new table to create
  * @param {function} records - An array of form columns
+ * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function insertTable(table, records) {
+export function insertTable(table, records, options) {
   return state => {
     let { client } = state;
 
@@ -418,21 +376,8 @@ export function insertTable(table, records) {
         ${structureData}
       );`;
 
-      return new Promise((resolve, reject) => {
-        console.log(`Creating table via : ${query}`);
-
-        client.query(query, (err, result) => {
-          if (err) {
-            reject(err);
-            client.end();
-          } else {
-            console.log(result);
-            resolve(result);
-          }
-        });
-      }).then(data => {
-        return { ...state, response: { body: data } };
-      });
+      console.log('Preparing to create table via:', query);
+      return queryHandler(state, query, options);
     } catch (e) {
       console.log(e);
       client.end();
@@ -448,9 +393,10 @@ export function insertTable(table, records) {
  * @constructor
  * @param {string} table - The name of the table to alter
  * @param {function} records - An array of form columns
+ * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function modifyTable(table, records) {
+export function modifyTable(table, records, options) {
   return state => {
     let { client } = state;
 
@@ -466,21 +412,8 @@ export function modifyTable(table, records) {
         ${structureData}
       ;`;
 
-      return new Promise((resolve, reject) => {
-        console.log(`Altering table via : ${query}`);
-
-        client.query(query, (err, result) => {
-          if (err) {
-            reject(err);
-            client.end();
-          } else {
-            console.log(result);
-            resolve(result);
-          }
-        });
-      }).then(data => {
-        return { ...state, response: { body: data } };
-      });
+      console.log('Preparing to modify table via:', query);
+      return queryHandler(state, query, options);
     } catch (e) {
       console.log(e);
       client.end();
