@@ -365,11 +365,13 @@ export function describeTable(table, options) {
 export function insertTable(table, records, options) {
   return state => {
     let { client } = state;
-
     try {
       const recordData = records(state);
       const structureData = recordData
-        .map(x => `${x.name} ${x.type} ${x.required ? 'NOT NULL' : ''}`)
+        .map(
+          x =>
+            `${x.name} ${x.type} ${x.unique ? 'UNIQUE' : ''} ${x.required ? 'NOT NULL' : ''}`
+        )
         .join(', ');
 
       const query = `CREATE TABLE ${table} (
