@@ -329,18 +329,18 @@ export function upsertMany(table, uuid, records, options) {
  * @example
  * describeTable('table_name')
  * @constructor
- * @param {string} table - The name of the table to describe
+ * @param {string} tableName - The name of the table to describe
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function describeTable(table, options) {
+export function describeTable(tableName, options) {
   return state => {
     let { client } = state;
 
     try {
       const query = `SELECT column_name, udt_name, is_nullable
         FROM information_schema.columns
-        WHERE table_name='${table}';`;
+        WHERE table_name='${tableName}';`;
 
       console.log('Preparing to describle table via:', query);
       return queryHandler(state, query, options);
@@ -355,26 +355,35 @@ export function describeTable(table, options) {
  * Create a table in database when given a form definition and a table_name.
  * @public
  * @example
- * insertTable('table_name', state => state.data.koboColumns)
+ * insertTable('table_name', state => state.data.map(
+ *   column => ({
+ *      name: column.name,
+ *      type: column.type,
+ *      required: true, // optional
+ *      unique: false, // optional - to be set to true for unique constraint
+ *    })
+ * ));
  * @constructor
- * @param {string} table - The new table to create
- * @param {function} records - An array of form columns
+ * @param {string} tableName - The name of the table to create
+ * @param {function} columns - An array of form columns
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function insertTable(table, records, options) {
+export function insertTable(tableName, columns, options) {
   return state => {
     let { client } = state;
     try {
-      const recordData = records(state);
+      const recordData = columns(state);
       const structureData = recordData
         .map(
           x =>
-            `${x.name} ${x.type} ${x.unique ? 'UNIQUE' : ''} ${x.required ? 'NOT NULL' : ''}`
+            `${x.name} ${x.type} ${x.unique ? 'UNIQUE' : ''} ${
+              x.required ? 'NOT NULL' : ''
+            }`
         )
         .join(', ');
 
-      const query = `CREATE TABLE ${table} (
+      const query = `CREATE TABLE ${tableName} (
         ${structureData}
       );`;
 
@@ -391,26 +400,33 @@ export function insertTable(table, records, options) {
  * Alter an existing table in the database.
  * @public
  * @example
- * modifyTable('table_name', state => state.data.koboColumns)
+ * modifyTable('table_name', state => state.data.map(
+ *    newColumn => ({
+ *      name: newColumn.name,
+ *      type: newColumn.type,
+ *      required: true, // optional
+ *      unique: false, // optional - to be set to true for unique constraint
+ *    })
+ * ));
  * @constructor
- * @param {string} table - The name of the table to alter
- * @param {function} records - An array of form columns
+ * @param {string} tableName - The name of the table to alter
+ * @param {function} columns - An array of form columns
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function modifyTable(table, records, options) {
+export function modifyTable(tableName, columns, options) {
   return state => {
     let { client } = state;
 
     try {
-      const recordData = records(state);
+      const recordData = columns(state);
       const structureData = recordData
         .map(
           x => `ADD COLUMN ${x.name} ${x.type} ${x.required ? 'NOT NULL' : ''}`
         )
         .join(', ');
 
-      const query = `ALTER TABLE ${table}
+      const query = `ALTER TABLE ${tableName}
         ${structureData}
       ;`;
 
