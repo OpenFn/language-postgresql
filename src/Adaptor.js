@@ -195,6 +195,7 @@ export function insertMany(table, records, options) {
     try {
       const recordData = records(state);
       if (recordData.length === 0) {
+        console.log('No data found, Skipping insert.');
         return state;
       }
       // Note: we select the keys of the FIRST object as the canonical template.
@@ -300,6 +301,7 @@ export function upsertMany(table, uuid, records, options) {
     try {
       const recordData = records(state);
       if (recordData.length === 0) {
+        console.log('No data found, Skipping upsert.');
         return state;
       }
       const columns = Object.keys(recordData[0]);
@@ -387,6 +389,7 @@ export function insertTable(tableName, columns, options) {
     try {
       const recordData = columns(state);
       if (recordData.length === 0) {
+        console.log('No data found, Skipping create.');
         return state;
       }
       const structureData = recordData
@@ -436,6 +439,7 @@ export function modifyTable(tableName, columns, options) {
     try {
       const recordData = columns(state);
       if (recordData.length === 0) {
+        console.log('No data found, Skipping modification.');
         return state;
       }
       const structureData = recordData
