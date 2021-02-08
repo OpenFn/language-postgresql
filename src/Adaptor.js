@@ -154,6 +154,9 @@ export function insert(table, record, options) {
 
     try {
       const recordData = expandReferences(record)(state);
+      if (recordData.length === 0) {
+        return state;
+      }
       const columns = Object.keys(recordData).sort();
       const columnsList = columns.join(', ');
       const values = columns.map(key => recordData[key]);
@@ -191,6 +194,9 @@ export function insertMany(table, records, options) {
 
     try {
       const recordData = records(state);
+      if (recordData.length === 0) {
+        return state;
+      }
       // Note: we select the keys of the FIRST object as the canonical template.
       const columns = Object.keys(recordData[0]);
       const columnsList = columns.join(', ');
@@ -235,6 +241,9 @@ export function upsert(table, uuid, record, options) {
 
     try {
       const recordData = expandReferences(record)(state);
+      if (recordData.length === 0) {
+        return state;
+      }
       const columns = Object.keys(recordData).sort();
       const columnsList = columns.join(', ');
       const values = columns.map(key => recordData[key]);
@@ -290,6 +299,9 @@ export function upsertMany(table, uuid, records, options) {
 
     try {
       const recordData = records(state);
+      if (recordData.length === 0) {
+        return state;
+      }
       const columns = Object.keys(recordData[0]);
       const columnsList = columns.join(', ');
       const values = recordData.map(x => Object.values(x));
@@ -374,6 +386,9 @@ export function insertTable(tableName, columns, options) {
     let { client } = state;
     try {
       const recordData = columns(state);
+      if (recordData.length === 0) {
+        return state;
+      }
       const structureData = recordData
         .map(
           x =>
@@ -420,6 +435,9 @@ export function modifyTable(tableName, columns, options) {
 
     try {
       const recordData = columns(state);
+      if (recordData.length === 0) {
+        return state;
+      }
       const structureData = recordData
         .map(
           x => `ADD COLUMN ${x.name} ${x.type} ${x.required ? 'NOT NULL' : ''}`
