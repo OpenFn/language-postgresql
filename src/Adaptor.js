@@ -154,10 +154,6 @@ export function insert(table, record, options) {
 
     try {
       const recordData = expandReferences(record)(state);
-      if (recordData) {
-        console.log('No data found, Skipping insert.');
-        return state;
-      }
       const columns = Object.keys(recordData).sort();
       const columnsList = columns.join(', ');
       const values = columns.map(key => recordData[key]);
@@ -243,10 +239,6 @@ export function upsert(table, uuid, record, options) {
 
     try {
       const recordData = expandReferences(record)(state);
-      if (recordData) {
-        console.log('No data found, Skipping upsert.');
-        return state;
-      }
       const columns = Object.keys(recordData).sort();
       const columnsList = columns.join(', ');
       const values = columns.map(key => recordData[key]);
