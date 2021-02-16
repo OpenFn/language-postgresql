@@ -192,7 +192,7 @@ export function insertMany(table, records, options) {
     try {
       const recordData = records(state);
       if (recordData.length === 0) {
-        console.log('No records provided; Skipping insert.');
+        console.log('No records provided; skipping insert.');
         return state;
       }
       // Note: we select the keys of the FIRST object as the canonical template.
