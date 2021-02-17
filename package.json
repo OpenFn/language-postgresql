@@ -1,7 +1,8 @@
 {
-  "name": "language-postgresql",
+  "name": "@openfn/language-postgresql",
   "version": "2.4.2",
   "description": "A PostgreSQL Language Pack for OpenFn",
+  "homepage": "https://docs.openfn.org",
   "main": "lib/index.js",
   "scripts": {
     "build": "make",
