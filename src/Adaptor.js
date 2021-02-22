@@ -1,4 +1,7 @@
-import { execute as commonExecute, expandReferences } from '@openfn/language-common';
+import {
+  execute as commonExecute,
+  expandReferences,
+} from '@openfn/language-common';
 import { resolve as resolveUrl } from 'url';
 import pg from 'pg';
 import format from 'pg-format';
@@ -463,6 +466,7 @@ export {
   dataValue,
   each,
   field,
+  http,
   fields,
   lastReferenceValue,
   merge,
