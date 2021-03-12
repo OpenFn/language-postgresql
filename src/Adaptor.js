@@ -115,9 +115,7 @@ function queryHandler(state, query, options) {
  * Execute an SQL statement
  * @public
  * @example
- * execute(
- *   sql(sqlQuery, { writeSql: true })
- * )(state)
+ * sql(state => `select(*) from ${state.data.tableName};`, { writeSql: true })
  * @constructor
  * @param {function} sqlQuery - a function which takes state and returns a
  * string of SQL.
@@ -144,10 +142,10 @@ export function sql(sqlQuery, options) {
  * Insert a record
  * @public
  * @example
- * insert('users', {name: 'Elodie', id: 7});
+ * insert('users', { name: 'Elodie', id: 7 });
  * @constructor
  * @param {string} table - The target table
- * @param {object} record - Payload data for the record as a JS object
+ * @param {object} record - Payload data for the record as a JS object or function
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -156,10 +154,10 @@ export function insert(table, record, options) {
     const { client } = state;
 
     try {
-      const recordData = expandReferences(record)(state);
-      const columns = Object.keys(recordData).sort();
+      const data = expandReferences(record)(state);
+      const columns = Object.keys(data).sort();
       const columnsList = columns.join(', ');
-      const values = columns.map(key => recordData[key]);
+      const values = columns.map(key => data[key]);
 
       const query = format(
         `INSERT INTO ${table} (${columnsList}) VALUES (%L);`,
@@ -184,7 +182,7 @@ export function insert(table, record, options) {
  * insertMany('users', state => state.data.recordArray);
  * @constructor
  * @param {string} table - The target table
- * @param {object} records - A function that takes state and returns an array of records
+ * @param {array} records - An array or a function that takes state and returns an array
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -193,17 +191,17 @@ export function insertMany(table, records, options) {
     let { client } = state;
 
     try {
-      const recordData = expandReferences(records)(state);
+      const data = expandReferences(records)(state);
 
       return new Promise((resolve, reject) => {
-        if (recordData.length === 0) {
+        if (data.length === 0) {
           console.log('No records provided; skipping insert.');
           resolve(state);
         }
         // Note: we select the keys of the FIRST object as the canonical template.
-        const columns = Object.keys(recordData[0]);
+        const columns = Object.keys(data[0]);
         const columnsList = columns.join(', ');
-        const valueSets = recordData.map(x => Object.values(x));
+        const valueSets = data.map(x => Object.values(x));
 
         const query = format(
           `INSERT INTO ${table} (${columnsList}) VALUES %L;`,
@@ -213,7 +211,6 @@ export function insertMany(table, records, options) {
         const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]];`;
 
         console.log('Preparing to insertMany via:', safeQuery);
-        // console.log('Preparing to insertMany via:', query);
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
@@ -228,15 +225,15 @@ export function insertMany(table, records, options) {
  * @public
  * @example
  * upsert(
- *  'users', // the DB table
- *  'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME
- *  {name: 'Elodie', id: 7},
- *  {writeSql:true, execute: true}
+ *   'users', // the DB table
+ *   'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME
+ *   { name: 'Elodie', id: 7 },
+ *   { writeSql:true, execute: true }
  * )
  * @constructor
  * @param {string} table - The target table
  * @param {string} uuid - The uuid column to determine a matching/existing record
- * @param {object} record - Payload data for the record as a JS object
+ * @param {object} record - Payload data for the record as a JS object or function
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -245,10 +242,10 @@ export function upsert(table, uuid, record, options) {
     let { client } = state;
 
     try {
-      const recordData = expandReferences(record)(state);
-      const columns = Object.keys(recordData).sort();
+      const data = expandReferences(record)(state);
+      const columns = Object.keys(data).sort();
       const columnsList = columns.join(', ');
-      const values = columns.map(key => recordData[key]);
+      const values = columns.map(key => data[key]);
       const conflict = uuid.split(' ').length > 1 ? uuid : `(${uuid})`;
 
       const updateValues = columns
@@ -284,33 +281,36 @@ export function upsert(table, uuid, record, options) {
  * @public
  * @example
  * upsert(
- *  'users', // the DB table
- *  'email', // a DB column with a unique constraint OR a CONSTRAINT NAME
- *  usersArray
+ *   'users', // the DB table
+ *   'email', // a DB column with a unique constraint OR a CONSTRAINT NAME
+ *   [
+ *     { name: 'one', email: 'one@openfn.org },
+ *     { name: 'two', email: 'two@openfn.org },
+ *   ]
  * )
  * @constructor
  * @param {string} table - The target table
  * @param {string} uuid - The uuid column to determine a matching/existing record
- * @param {object} records - An array of records
+ * @param {array} data - An array of objects or a function that returns an array
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
-export function upsertMany(table, uuid, records, options) {
+export function upsertMany(table, uuid, data, options) {
   return state => {
     let { client } = state;
 
     try {
-      const recordData = expandReferences(records)(state);
+      const records = expandReferences(data)(state);
 
       return new Promise((resolve, reject) => {
-        if (recordData.length === 0) {
+        if (records.length === 0) {
           console.log('No records provided; skipping upsert.');
           resolve(state);
         }
 
-        const columns = Object.keys(recordData[0]);
+        const columns = Object.keys(records[0]);
         const columnsList = columns.join(', ');
-        const values = recordData.map(x => Object.values(x));
+        const values = records.map(x => Object.values(x));
         const conflict = uuid.split(' ').length > 1 ? uuid : `(${uuid})`;
 
         const updateValues = columns
@@ -333,7 +333,6 @@ export function upsertMany(table, uuid, records, options) {
         DO UPDATE SET ${updateValues};`;
 
         console.log('Preparing to upsert via:', safeQuery);
-        // console.log('Preparing to upsert via:', query);
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
@@ -347,7 +346,7 @@ export function upsertMany(table, uuid, records, options) {
  * List the columns of a table in a database.
  * @public
  * @example
- * describeTable('table_name')
+ * describeTable('clinic_visits')
  * @constructor
  * @param {string} tableName - The name of the table to describe
  * @param {object} options - Optional options argument
@@ -356,13 +355,14 @@ export function upsertMany(table, uuid, records, options) {
 export function describeTable(tableName, options) {
   return state => {
     let { client } = state;
+    const name = expandReferences(tableName)(state);
 
     try {
       const query = `SELECT column_name, udt_name, is_nullable
         FROM information_schema.columns
-        WHERE table_name='${tableName}';`;
+        WHERE table_name='${name}';`;
 
-      console.log('Preparing to describle table via:', query);
+      console.log('Preparing to describe table via:', query);
       return queryHandler(state, query, options);
     } catch (e) {
       console.log(e);
@@ -377,15 +377,15 @@ export function describeTable(tableName, options) {
  * @example
  * insertTable('table_name', state => state.data.map(
  *   column => ({
- *      name: column.name,
- *      type: column.type,
- *      required: true, // optional
- *      unique: false, // optional - to be set to true for unique constraint
- *    })
+ *     name: column.name,
+ *     type: column.type,
+ *     required: true, // optional
+ *     unique: false, // optional - to be set to true for unique constraint
+ *   })
  * ));
  * @constructor
  * @param {string} tableName - The name of the table to create
- * @param {object} columns - An array of form columns
+ * @param {array} columns - An array of form columns
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -393,14 +393,14 @@ export function insertTable(tableName, columns, options) {
   return state => {
     let { client } = state;
     try {
-      const recordData = expandReferences(columns)(state);
+      const data = expandReferences(columns)(state);
 
       return new Promise((resolve, reject) => {
-        if (recordData.length === 0) {
+        if (data.length === 0) {
           console.log('No columns provided; skipping table creation.');
           resolve(state);
         }
-        const structureData = recordData
+        const structureData = data
           .map(
             x =>
               `${x.name} ${x.type} ${x.unique ? 'UNIQUE' : ''} ${
@@ -428,16 +428,16 @@ export function insertTable(tableName, columns, options) {
  * @public
  * @example
  * modifyTable('table_name', state => state.data.map(
- *    newColumn => ({
- *      name: newColumn.name,
- *      type: newColumn.type,
- *      required: true, // optional
- *      unique: false, // optional - to be set to true for unique constraint
- *    })
+ *   newColumn => ({
+ *     name: newColumn.name,
+ *     type: newColumn.type,
+ *     required: true, // optional
+ *     unique: false, // optional - to be set to true for unique constraint
+ *   })
  * ));
  * @constructor
  * @param {string} tableName - The name of the table to alter
- * @param {object} columns - An array of form columns
+ * @param {array} columns - An array of form columns
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -446,14 +446,14 @@ export function modifyTable(tableName, columns, options) {
     let { client } = state;
 
     try {
-      const recordData = expandReferences(columns)(state);
+      const data = expandReferences(columns)(state);
 
       return new Promise((resolve, reject) => {
-        if (recordData.length === 0) {
+        if (data.length === 0) {
           console.log('No columns provided; skipping table modification.');
           resolve(state);
         }
-        const structureData = recordData
+        const structureData = data
           .map(
             x =>
               `ADD COLUMN ${x.name} ${x.type} ${x.required ? 'NOT NULL' : ''}`
