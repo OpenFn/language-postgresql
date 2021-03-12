@@ -132,8 +132,8 @@ export function sql(sqlQuery, options) {
       console.log('Preparing to execute sql statement');
       return queryHandler(state, body, options);
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
@@ -169,8 +169,8 @@ export function insert(table, record, options) {
       console.log('Preparing to insert via:', safeQuery);
       return queryHandler(state, query, options);
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
@@ -214,8 +214,8 @@ export function insertMany(table, records, options) {
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
@@ -270,8 +270,8 @@ export function upsert(table, uuid, record, options) {
       console.log('Preparing to upsert via:', safeQuery);
       return queryHandler(state, query, options);
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
@@ -336,8 +336,8 @@ export function upsertMany(table, uuid, data, options) {
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
@@ -365,8 +365,8 @@ export function describeTable(tableName, options) {
       console.log('Preparing to describe table via:', query);
       return queryHandler(state, query, options);
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
@@ -417,8 +417,8 @@ export function insertTable(tableName, columns, options) {
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
@@ -466,8 +466,8 @@ export function modifyTable(tableName, columns, options) {
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
