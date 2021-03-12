@@ -184,7 +184,7 @@ export function insert(table, record, options) {
  * insertMany('users', state => state.data.recordArray);
  * @constructor
  * @param {string} table - The target table
- * @param {function} records - A function that takes state and returns an array of records
+ * @param {object} records - A function that takes state and returns an array of records
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -193,25 +193,29 @@ export function insertMany(table, records, options) {
     let { client } = state;
 
     try {
-      const recordData = records(state);
-      if (recordData.length === 0) {
-        console.log('No records provided; skipping insert.');
-        return state;
-      }
-      // Note: we select the keys of the FIRST object as the canonical template.
-      const columns = Object.keys(recordData[0]);
-      const columnsList = columns.join(', ');
-      const valueSets = recordData.map(x => Object.values(x));
+      const recordData = expandReferences(records)(state);
 
-      const query = format(
-        `INSERT INTO ${table} (${columnsList}) VALUES %L;`,
-        valueSets
-      );
+      return new Promise((resolve, reject) => {
+        if (recordData.length === 0) {
+          console.log('No records provided; skipping insert.');
+          resolve(state);
+        }
+        // Note: we select the keys of the FIRST object as the canonical template.
+        const columns = Object.keys(recordData[0]);
+        const columnsList = columns.join(', ');
+        const valueSets = recordData.map(x => Object.values(x));
 
-      const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]];`;
+        const query = format(
+          `INSERT INTO ${table} (${columnsList}) VALUES %L;`,
+          valueSets
+        );
 
-      console.log('Preparing to insertMany via:', safeQuery);
-      return queryHandler(state, query, options);
+        const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]];`;
+
+        console.log('Preparing to insertMany via:', safeQuery);
+        // console.log('Preparing to insertMany via:', query);
+        resolve(queryHandler(state, query, options));
+      });
     } catch (e) {
       console.log(e);
       client.end();
@@ -282,12 +286,12 @@ export function upsert(table, uuid, record, options) {
  * upsert(
  *  'users', // the DB table
  *  'email', // a DB column with a unique constraint OR a CONSTRAINT NAME
- *  state => state.data.usersArray
+ *  usersArray
  * )
  * @constructor
  * @param {string} table - The target table
  * @param {string} uuid - The uuid column to determine a matching/existing record
- * @param {function} records - A function that takes state and returns an array of records
+ * @param {object} records - An array of records
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -296,37 +300,42 @@ export function upsertMany(table, uuid, records, options) {
     let { client } = state;
 
     try {
-      const recordData = records(state);
-      if (recordData.length === 0) {
-        console.log('No records provided; skipping upsert.');
-        return state;
-      }
-      const columns = Object.keys(recordData[0]);
-      const columnsList = columns.join(', ');
-      const values = recordData.map(x => Object.values(x));
-      const conflict = uuid.split(' ').length > 1 ? uuid : `(${uuid})`;
+      const recordData = expandReferences(records)(state);
 
-      const updateValues = columns
-        .map(key => {
-          return `${key}=excluded.${key}`;
-        })
-        .join(', ');
+      return new Promise((resolve, reject) => {
+        if (recordData.length === 0) {
+          console.log('No records provided; skipping upsert.');
+          resolve(state);
+        }
 
-      const insertValues = format(
-        `INSERT INTO ${table} (${columnsList}) VALUES %L`,
-        values
-      );
+        const columns = Object.keys(recordData[0]);
+        const columnsList = columns.join(', ');
+        const values = recordData.map(x => Object.values(x));
+        const conflict = uuid.split(' ').length > 1 ? uuid : `(${uuid})`;
 
-      const query = `${insertValues}
+        const updateValues = columns
+          .map(key => {
+            return `${key}=excluded.${key}`;
+          })
+          .join(', ');
+
+        const insertValues = format(
+          `INSERT INTO ${table} (${columnsList}) VALUES %L`,
+          values
+        );
+
+        const query = `${insertValues}
         ON CONFLICT ${conflict}
         DO UPDATE SET ${updateValues};`;
 
-      const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]
+        const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]
         ON CONFLICT ${conflict}
         DO UPDATE SET ${updateValues};`;
 
-      console.log('Preparing to upsert via:', safeQuery);
-      return queryHandler(state, query, options);
+        console.log('Preparing to upsert via:', safeQuery);
+        // console.log('Preparing to upsert via:', query);
+        resolve(queryHandler(state, query, options));
+      });
     } catch (e) {
       console.log(e);
       client.end();
@@ -376,7 +385,7 @@ export function describeTable(tableName, options) {
  * ));
  * @constructor
  * @param {string} tableName - The name of the table to create
- * @param {function} columns - An array of form columns
+ * @param {object} columns - An array of form columns
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -384,26 +393,29 @@ export function insertTable(tableName, columns, options) {
   return state => {
     let { client } = state;
     try {
-      const recordData = columns(state);
-      if (recordData.length === 0) {
-        console.log('No columns provided; skipping table creation.');
-        return state;
-      }
-      const structureData = recordData
-        .map(
-          x =>
-            `${x.name} ${x.type} ${x.unique ? 'UNIQUE' : ''} ${
-              x.required ? 'NOT NULL' : ''
-            }`
-        )
-        .join(', ');
+      const recordData = expandReferences(columns)(state);
 
-      const query = `CREATE TABLE ${tableName} (
+      return new Promise((resolve, reject) => {
+        if (recordData.length === 0) {
+          console.log('No columns provided; skipping table creation.');
+          resolve(state);
+        }
+        const structureData = recordData
+          .map(
+            x =>
+              `${x.name} ${x.type} ${x.unique ? 'UNIQUE' : ''} ${
+                x.required ? 'NOT NULL' : ''
+              }`
+          )
+          .join(', ');
+
+        const query = `CREATE TABLE ${tableName} (
         ${structureData}
       );`;
 
-      console.log('Preparing to create table via:', query);
-      return queryHandler(state, query, options);
+        console.log('Preparing to create table via:', query);
+        resolve(queryHandler(state, query, options));
+      });
     } catch (e) {
       console.log(e);
       client.end();
@@ -425,7 +437,7 @@ export function insertTable(tableName, columns, options) {
  * ));
  * @constructor
  * @param {string} tableName - The name of the table to alter
- * @param {function} columns - An array of form columns
+ * @param {object} columns - An array of form columns
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -434,23 +446,25 @@ export function modifyTable(tableName, columns, options) {
     let { client } = state;
 
     try {
-      const recordData = columns(state);
-      if (recordData.length === 0) {
-        console.log('No columns provided; skipping table modification.');
-        return state;
-      }
-      const structureData = recordData
-        .map(
-          x => `ADD COLUMN ${x.name} ${x.type} ${x.required ? 'NOT NULL' : ''}`
-        )
-        .join(', ');
+      const recordData = expandReferences(columns)(state);
 
-      const query = `ALTER TABLE ${tableName}
-        ${structureData}
-      ;`;
+      return new Promise((resolve, reject) => {
+        if (recordData.length === 0) {
+          console.log('No columns provided; skipping table modification.');
+          resolve(state);
+        }
+        const structureData = recordData
+          .map(
+            x =>
+              `ADD COLUMN ${x.name} ${x.type} ${x.required ? 'NOT NULL' : ''}`
+          )
+          .join(', ');
 
-      console.log('Preparing to modify table via:', query);
-      return queryHandler(state, query, options);
+        const query = `ALTER TABLE ${tableName} ${structureData};`;
+
+        console.log('Preparing to modify table via:', query);
+        resolve(queryHandler(state, query, options));
+      });
     } catch (e) {
       console.log(e);
       client.end();
