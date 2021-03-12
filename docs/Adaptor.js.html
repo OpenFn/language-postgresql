@@ -82,6 +82,12 @@ Object.defineProperty(exports, "field", {
     return _languageCommon.field;
   }
 });
+Object.defineProperty(exports, "http", {
+  enumerable: true,
+  get: function get() {
+    return _languageCommon.http;
+  }
+});
 Object.defineProperty(exports, "fields", {
   enumerable: true,
   get: function get() {
@@ -107,7 +113,7 @@ Object.defineProperty(exports, "sourceValue", {
   }
 });
 
-var _languageCommon = require("language-common");
+var _languageCommon = require("@openfn/language-common");
 
 var _url = require("url");
 
@@ -240,9 +246,7 @@ function queryHandler(state, query, options) {
  * Execute an SQL statement
  * @public
  * @example
- * execute(
- *   sql(sqlQuery, { writeSql: true })
- * )(state)
+ * sql(state => `select(*) from ${state.data.tableName};`, { writeSql: true })
  * @constructor
  * @param {function} sqlQuery - a function which takes state and returns a
  * string of SQL.
@@ -269,10 +273,10 @@ function sql(sqlQuery, options) {
  * Insert a record
  * @public
  * @example
- * insert('users', {name: 'Elodie', id: 7});
+ * insert('users', { name: 'Elodie', id: 7 });
  * @constructor
  * @param {string} table - The target table
- * @param {object} record - Payload data for the record as a JS object
+ * @param {object} record - Payload data for the record as a JS object or function
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -283,11 +287,11 @@ function insert(table, record, options) {
     var client = state.client;
 
     try {
-      var recordData = (0, _languageCommon.expandReferences)(record)(state);
-      var columns = Object.keys(recordData).sort();
+      var data = (0, _languageCommon.expandReferences)(record)(state);
+      var columns = Object.keys(data).sort();
       var columnsList = columns.join(', ');
       var values = columns.map(function (key) {
-        return recordData[key];
+        return data[key];
       });
       var query = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES (%L);"), values);
       var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]];");
@@ -306,7 +310,7 @@ function insert(table, record, options) {
  * insertMany('users', state => state.data.recordArray);
  * @constructor
  * @param {string} table - The target table
- * @param {function} records - A function that takes state and returns an array of records
+ * @param {array} records - An array or a function that takes state and returns an array
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -317,17 +321,24 @@ function insertMany(table, records, options) {
     var client = state.client;
 
     try {
-      var recordData = records(state); // Note: we select the keys of the FIRST object as the canonical template.
+      var data = (0, _languageCommon.expandReferences)(records)(state);
+      return new Promise(function (resolve, reject) {
+        if (data.length === 0) {
+          console.log('No records provided; skipping insert.');
+          resolve(state);
+        } // Note: we select the keys of the FIRST object as the canonical template.
 
-      var columns = Object.keys(recordData[0]);
-      var columnsList = columns.join(', ');
-      var valueSets = recordData.map(function (x) {
-        return Object.values(x);
+
+        var columns = Object.keys(data[0]);
+        var columnsList = columns.join(', ');
+        var valueSets = data.map(function (x) {
+          return Object.values(x);
+        });
+        var query = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES %L;"), valueSets);
+        var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]];");
+        console.log('Preparing to insertMany via:', safeQuery);
+        resolve(queryHandler(state, query, options));
       });
-      var query = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES %L;"), valueSets);
-      var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]];");
-      console.log('Preparing to insertMany via:', safeQuery);
-      return queryHandler(state, query, options);
     } catch (e) {
       console.log(e);
       client.end();
@@ -339,15 +350,15 @@ function insertMany(table, records, options) {
  * @public
  * @example
  * upsert(
- *  'users', // the DB table
- *  'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME
- *  {name: 'Elodie', id: 7},
- *  {writeSql:true, execute: true}
+ *   'users', // the DB table
+ *   'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME
+ *   { name: 'Elodie', id: 7 },
+ *   { writeSql:true, execute: true }
  * )
  * @constructor
  * @param {string} table - The target table
  * @param {string} uuid - The uuid column to determine a matching/existing record
- * @param {object} record - Payload data for the record as a JS object
+ * @param {object} record - Payload data for the record as a JS object or function
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -358,11 +369,11 @@ function upsert(table, uuid, record, options) {
     var client = state.client;
 
     try {
-      var recordData = (0, _languageCommon.expandReferences)(record)(state);
-      var columns = Object.keys(recordData).sort();
+      var data = (0, _languageCommon.expandReferences)(record)(state);
+      var columns = Object.keys(data).sort();
       var columnsList = columns.join(', ');
       var values = columns.map(function (key) {
-        return recordData[key];
+        return data[key];
       });
       var conflict = uuid.split(' ').length > 1 ? uuid : "(".concat(uuid, ")");
       var updateValues = columns.map(function (key) {
@@ -384,39 +395,49 @@ function upsert(table, uuid, record, options) {
  * @public
  * @example
  * upsert(
- *  'users', // the DB table
- *  'email', // a DB column with a unique constraint OR a CONSTRAINT NAME
- *  state => state.data.usersArray
+ *   'users', // the DB table
+ *   'email', // a DB column with a unique constraint OR a CONSTRAINT NAME
+ *   [
+ *     { name: 'one', email: 'one@openfn.org },
+ *     { name: 'two', email: 'two@openfn.org },
+ *   ]
  * )
  * @constructor
  * @param {string} table - The target table
  * @param {string} uuid - The uuid column to determine a matching/existing record
- * @param {function} records - A function that takes state and returns an array of records
+ * @param {array} data - An array of objects or a function that returns an array
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
 
 
-function upsertMany(table, uuid, records, options) {
+function upsertMany(table, uuid, data, options) {
   return function (state) {
     var client = state.client;
 
     try {
-      var recordData = records(state);
-      var columns = Object.keys(recordData[0]);
-      var columnsList = columns.join(', ');
-      var values = recordData.map(function (x) {
-        return Object.values(x);
+      var records = (0, _languageCommon.expandReferences)(data)(state);
+      return new Promise(function (resolve, reject) {
+        if (records.length === 0) {
+          console.log('No records provided; skipping upsert.');
+          resolve(state);
+        }
+
+        var columns = Object.keys(records[0]);
+        var columnsList = columns.join(', ');
+        var values = records.map(function (x) {
+          return Object.values(x);
+        });
+        var conflict = uuid.split(' ').length > 1 ? uuid : "(".concat(uuid, ")");
+        var updateValues = columns.map(function (key) {
+          return "".concat(key, "=excluded.").concat(key);
+        }).join(', ');
+        var insertValues = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES %L"), values);
+        var query = "".concat(insertValues, "\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
+        var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
+        console.log('Preparing to upsert via:', safeQuery);
+        resolve(queryHandler(state, query, options));
       });
-      var conflict = uuid.split(' ').length > 1 ? uuid : "(".concat(uuid, ")");
-      var updateValues = columns.map(function (key) {
-        return "".concat(key, "=excluded.").concat(key);
-      }).join(', ');
-      var insertValues = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES %L"), values);
-      var query = "".concat(insertValues, "\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
-      var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
-      console.log('Preparing to upsert via:', safeQuery);
-      return queryHandler(state, query, options);
     } catch (e) {
       console.log(e);
       client.end();
@@ -427,7 +448,7 @@ function upsertMany(table, uuid, records, options) {
  * List the columns of a table in a database.
  * @public
  * @example
- * describeTable('table_name')
+ * describeTable('clinic_visits')
  * @constructor
  * @param {string} tableName - The name of the table to describe
  * @param {object} options - Optional options argument
@@ -438,10 +459,11 @@ function upsertMany(table, uuid, records, options) {
 function describeTable(tableName, options) {
   return function (state) {
     var client = state.client;
+    var name = (0, _languageCommon.expandReferences)(tableName)(state);
 
     try {
-      var query = "SELECT column_name, udt_name, is_nullable\n        FROM information_schema.columns\n        WHERE table_name='".concat(tableName, "';");
-      console.log('Preparing to describle table via:', query);
+      var query = "SELECT column_name, udt_name, is_nullable\n        FROM information_schema.columns\n        WHERE table_name='".concat(name, "';");
+      console.log('Preparing to describe table via:', query);
       return queryHandler(state, query, options);
     } catch (e) {
       console.log(e);
@@ -455,15 +477,15 @@ function describeTable(tableName, options) {
  * @example
  * insertTable('table_name', state => state.data.map(
  *   column => ({
- *      name: column.name,
- *      type: column.type,
- *      required: true, // optional
- *      unique: false, // optional - to be set to true for unique constraint
- *    })
+ *     name: column.name,
+ *     type: column.type,
+ *     required: true, // optional
+ *     unique: false, // optional - to be set to true for unique constraint
+ *   })
  * ));
  * @constructor
  * @param {string} tableName - The name of the table to create
- * @param {function} columns - An array of form columns
+ * @param {array} columns - An array of form columns
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -474,13 +496,20 @@ function insertTable(tableName, columns, options) {
     var client = state.client;
 
     try {
-      var recordData = columns(state);
-      var structureData = recordData.map(function (x) {
-        return "".concat(x.name, " ").concat(x.type, " ").concat(x.unique ? 'UNIQUE' : '', " ").concat(x.required ? 'NOT NULL' : '');
-      }).join(', ');
-      var query = "CREATE TABLE ".concat(tableName, " (\n        ").concat(structureData, "\n      );");
-      console.log('Preparing to create table via:', query);
-      return queryHandler(state, query, options);
+      var data = (0, _languageCommon.expandReferences)(columns)(state);
+      return new Promise(function (resolve, reject) {
+        if (data.length === 0) {
+          console.log('No columns provided; skipping table creation.');
+          resolve(state);
+        }
+
+        var structureData = data.map(function (x) {
+          return "".concat(x.name, " ").concat(x.type, " ").concat(x.unique ? 'UNIQUE' : '', " ").concat(x.required ? 'NOT NULL' : '');
+        }).join(', ');
+        var query = "CREATE TABLE ".concat(tableName, " (\n        ").concat(structureData, "\n      );");
+        console.log('Preparing to create table via:', query);
+        resolve(queryHandler(state, query, options));
+      });
     } catch (e) {
       console.log(e);
       client.end();
@@ -492,16 +521,16 @@ function insertTable(tableName, columns, options) {
  * @public
  * @example
  * modifyTable('table_name', state => state.data.map(
- *    newColumn => ({
- *      name: newColumn.name,
- *      type: newColumn.type,
- *      required: true, // optional
- *      unique: false, // optional - to be set to true for unique constraint
- *    })
+ *   newColumn => ({
+ *     name: newColumn.name,
+ *     type: newColumn.type,
+ *     required: true, // optional
+ *     unique: false, // optional - to be set to true for unique constraint
+ *   })
  * ));
  * @constructor
  * @param {string} tableName - The name of the table to alter
- * @param {function} columns - An array of form columns
+ * @param {array} columns - An array of form columns
  * @param {object} options - Optional options argument
  * @returns {Operation}
  */
@@ -512,13 +541,20 @@ function modifyTable(tableName, columns, options) {
     var client = state.client;
 
     try {
-      var recordData = columns(state);
-      var structureData = recordData.map(function (x) {
-        return "ADD COLUMN ".concat(x.name, " ").concat(x.type, " ").concat(x.required ? 'NOT NULL' : '');
-      }).join(', ');
-      var query = "ALTER TABLE ".concat(tableName, "\n        ").concat(structureData, "\n      ;");
-      console.log('Preparing to modify table via:', query);
-      return queryHandler(state, query, options);
+      var data = (0, _languageCommon.expandReferences)(columns)(state);
+      return new Promise(function (resolve, reject) {
+        if (data.length === 0) {
+          console.log('No columns provided; skipping table modification.');
+          resolve(state);
+        }
+
+        var structureData = data.map(function (x) {
+          return "ADD COLUMN ".concat(x.name, " ").concat(x.type, " ").concat(x.required ? 'NOT NULL' : '');
+        }).join(', ');
+        var query = "ALTER TABLE ".concat(tableName, " ").concat(structureData, ";");
+        console.log('Preparing to modify table via:', query);
+        resolve(queryHandler(state, query, options));
+      });
     } catch (e) {
       console.log(e);
       client.end();
@@ -541,7 +577,7 @@ function modifyTable(tableName, columns, options) {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Fri Feb 05 2021 13:13:24 GMT+0000 (Greenwich Mean Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Fri Mar 12 2021 17:29:22 GMT+0000 (Greenwich Mean Time)
 </footer>
 
 <script> prettyPrint(); </script>

@@ -4,6 +4,10 @@
   "description": "A PostgreSQL Language Pack for OpenFn",
   "homepage": "https://docs.openfn.org",
   "main": "lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openfn/language-postgresql.git"
+  },
   "scripts": {
     "build": "make",
     "test": "mocha --require @babel/register",
