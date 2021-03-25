@@ -1,10 +1,68 @@
 import {
   execute as commonExecute,
-  expandReferences,
+  expandReferences as commonExpansion,
 } from '@openfn/language-common';
 import { resolve as resolveUrl } from 'url';
 import pg from 'pg';
 import format from 'pg-format';
+import { resolve } from 'path';
+
+// async function expandReferences(thing) {
+//   return state => {
+//     if (typeof thing?.then === 'function') {
+//       console.log('think its a promise', thing);
+//       // probably a promise
+//       await thing;
+//     } else {
+//       console.log('else not', thing);
+//       return commonExpansion(thing)(state);
+//     }
+//   };
+// }.
+
+const expandReferences = async (value, skipFilter) => {
+  console.log(value);
+  return async state => {
+    if (skipFilter && skipFilter(value)) return value;
+
+    if (typeof value?.then === 'function') {
+      console.log('think its a promise', value);
+      // probably a promise
+      const pgData = await value;
+      return pgData;
+    }
+
+    if (Array.isArray(value)) {
+      return value.map(v => expandReferences(v)(state));
+    }
+
+    if (typeof value == 'object' && !!value) {
+      return Object.keys(value).reduce((acc, key) => {
+        return { ...acc, [key]: expandReferences(value[key])(state) };
+      }, {});
+    }
+
+    if (typeof value == 'function') {
+      return expandReferences(value(state))(state);
+    }
+    return value;
+  };
+};
+
+// function expandReferences(thing) {
+//   console.log('thing', thing);
+//   console.log('hello thing', JSON.stringify(thing, null, 2));
+//   return state => {
+//     if (typeof thing?.then === 'function') {
+//       console.log('think its a promise', thing);
+//       // probably a promise
+//       return thing.resolve(state);
+//     } else {
+//       console.log('else not', thing);
+//       return commonExpansion(thing)(state);
+//     }
+//   };
+// }
 
 /** @module Adaptor */
 
@@ -163,9 +221,7 @@ export function findValue(table, uuid, parentUuid, value) {
 
     try {
       const body = `select ${parentUuid} from ${table} where ${uuid} = '${value}'`;
-
-      console.log('Preparing to execute sql statement');
-      let val = '';
+      console.log('body', body);
 
       return new Promise((resolve, reject) => {
         client.query(body, (err, result) => {
@@ -175,22 +231,10 @@ export function findValue(table, uuid, parentUuid, value) {
             client.end();
           } else {
             console.log(result);
-            val = result.rows[0][uuid];
-            console.log(val);
             resolve(result);
           }
         });
       });
-      /* const response = queryHandler(state, body).then(({ response }) => {
-        const val = response.body.rows[0][uuid];
-        console.log(response.body.rows[0][uuid]);
-        return val;
-      });
-      response.then(val => {
-        console.log('val', val);
-      }); */
-      console.log('after handling query');
-      return state;
     } catch (e) {
       client.end();
       throw e;
@@ -302,9 +346,9 @@ export function upsert(table, uuid, record, options) {
     let { client } = state;
 
     try {
-      console.log('rec', record);
-      const data = expandReferences(record)(state);
-      console.log('data', data);
+      console.log('rec before expand', record);
+      const data = expandReferences.resolve(record)(state);
+      console.log('data after expand', data);
       const columns = Object.keys(data).sort();
       const columnsList = columns.join(', ');
       const values = columns.map(key => data[key]);
