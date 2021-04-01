@@ -102,7 +102,6 @@ function queryHandler(state, query, options) {
         reject(err);
         client.end();
       } else {
-        // console.log(result);
         resolve(result);
       }
     });
