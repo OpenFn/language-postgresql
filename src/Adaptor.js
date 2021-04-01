@@ -139,33 +139,33 @@ export function sql(sqlQuery, options) {
 }
 
 /**
- * Fetch a foreign key
+ * Fetch a uuid key given a condition
  * @public
  * @example
- * findValue(
- *   'users', // the DB table
- *   'email', // a DB column with a unique constraint OR a CONSTRAINT NAME
- *   [
- *     { name: 'one', email: 'one@openfn.org },
- *     { name: 'two', email: 'two@openfn.org },
- *   ]
- * )
+ * findValue({
+ *    uuid: 'id',
+ *    relation: 'users',
+ *    where: { first_name: 'Mamadou' },
+ *  })
  * @constructor
- * @param {string} table - The target table
- * @param {string} uuid - The uuid column to determine a matching/existing record
- * @param {array} parentUuid - An array of objects or a function that returns an array
- * @param {object} value - The value to look for
+ * @param {object} filter - A filter object with the lookup table, a uuid and the condition
  * @returns {Operation}
  */
-export function findValue(table, uuid, parentUuid, value) {
+export function findValue(filter) {
   return state => {
     let { client } = state;
 
+    const { uuid, relation, where } = filter;
+
+    let conditionsArray = [];
+    for (let key in where) conditionsArray.push(`${key} = '${where[key]}'`);
+    const condition = conditionsArray.join(' and '); // In a near future the 'and' can live in the filter.
+
     try {
-      const body = `select ${parentUuid} from ${table} where ${uuid} = '${value}'`;
+      const body = `select ${uuid} from ${relation} where ${condition}`;
 
       console.log('Preparing to execute sql statement');
-      let val = '';
+      let returnValue = null;
 
       return new Promise((resolve, reject) => {
         client.query(body, (err, result) => {
@@ -174,23 +174,13 @@ export function findValue(table, uuid, parentUuid, value) {
             reject(err);
             client.end();
           } else {
-            console.log(result);
-            val = result.rows[0][uuid];
-            console.log(val);
-            resolve(result);
+            if (result.rows.length > 0) {
+              returnValue = result.rows[0][uuid];
+            }
+            resolve(returnValue);
           }
         });
       });
-      /* const response = queryHandler(state, body).then(({ response }) => {
-        const val = response.body.rows[0][uuid];
-        console.log(response.body.rows[0][uuid]);
-        return val;
-      });
-      response.then(val => {
-        console.log('val', val);
-      }); */
-      console.log('after handling query');
-      return state;
     } catch (e) {
       client.end();
       throw e;
@@ -302,9 +292,7 @@ export function upsert(table, uuid, record, options) {
     let { client } = state;
 
     try {
-      console.log('rec', record);
       const data = expandReferences(record)(state);
-      console.log('data', data);
       const columns = Object.keys(data).sort();
       const columnsList = columns.join(', ');
       const values = columns.map(key => data[key]);
