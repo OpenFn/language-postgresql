@@ -317,7 +317,7 @@ export function upsert(table, uuid, record, options) {
         ON CONFLICT ${conflict}
         DO UPDATE SET ${updateValues};`;
 
-      console.log('Preparing to upsert via:', query);
+      console.log('Preparing to upsert via:', safeQuery);
       return queryHandler(state, query, options);
     } catch (e) {
       client.end();
