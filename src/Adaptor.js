@@ -5,6 +5,7 @@ import {
 import { resolve as resolveUrl } from 'url';
 import pg from 'pg';
 import format from 'pg-format';
+import { resolve } from 'path';
 
 /** @module Adaptor */
 
@@ -243,7 +244,7 @@ export function insertMany(table, records, options) {
       const data = expandReferences(records)(state);
 
       return new Promise((resolve, reject) => {
-        if (data.length === 0) {
+        if (!data || data.length === 0) {
           console.log('No records provided; skipping insert.');
           resolve(state);
         }
@@ -352,7 +353,7 @@ export function upsertMany(table, uuid, data, options) {
       const records = expandReferences(data)(state);
 
       return new Promise((resolve, reject) => {
-        if (records.length === 0) {
+        if (!records || records.length === 0) {
           console.log('No records provided; skipping upsert.');
           resolve(state);
         }
@@ -445,7 +446,7 @@ export function insertTable(tableName, columns, options) {
       const data = expandReferences(columns)(state);
 
       return new Promise((resolve, reject) => {
-        if (data.length === 0) {
+        if (!data || data.length === 0) {
           console.log('No columns provided; skipping table creation.');
           resolve(state);
         }
@@ -498,7 +499,7 @@ export function modifyTable(tableName, columns, options) {
       const data = expandReferences(columns)(state);
 
       return new Promise((resolve, reject) => {
-        if (data.length === 0) {
+        if (!data || data.length === 0) {
           console.log('No columns provided; skipping table modification.');
           resolve(state);
         }
