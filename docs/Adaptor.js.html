@@ -33,6 +33,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.execute = execute;
 exports.sql = sql;
+exports.findValue = findValue;
 exports.insert = insert;
 exports.insertMany = insertMany;
 exports.upsert = upsert;
@@ -120,6 +121,8 @@ var _url = require("url");
 var _pg = _interopRequireDefault(require("pg"));
 
 var _pgFormat = _interopRequireDefault(require("pg-format"));
+
+var _path = require("path");
 
 function _interopRequireDefault(obj) { return obj &amp;&amp; obj.__esModule ? obj : { "default": obj }; }
 
@@ -230,7 +233,6 @@ function queryHandler(state, query, options) {
         reject(err);
         client.end();
       } else {
-        console.log(result);
         resolve(result);
       }
     });
@@ -264,8 +266,66 @@ function sql(sqlQuery, options) {
       console.log('Preparing to execute sql statement');
       return queryHandler(state, body, options);
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
+    }
+  };
+}
+/**
+ * Fetch a uuid key given a condition
+ * @public
+ * @example
+ * findValue({
+ *    uuid: 'id',
+ *    relation: 'users',
+ *    where: { first_name: 'Mamadou' },
+ *    operator: { first_name: 'like' }
+ *  })
+ * @constructor
+ * @param {object} filter - A filter object with the lookup table, a uuid and the condition
+ * @returns {Operation}
+ */
+
+
+function findValue(filter) {
+  return function (state) {
+    var client = state.client;
+    var uuid = filter.uuid,
+        relation = filter.relation,
+        where = filter.where,
+        operator = filter.operator;
+    var whereData = (0, _languageCommon.expandReferences)(where)(state);
+    var operatorData = (0, _languageCommon.expandReferences)(operator)(state);
+    var conditionsArray = [];
+
+    for (var key in where) {
+      conditionsArray.push("".concat(key, " ").concat(operatorData ? operatorData[key] : '=', " '").concat(whereData[key], "'"));
+    }
+
+    var condition = conditionsArray.length > 0 ? "where ".concat(conditionsArray.join(' and ')) : ''; // In a near future the 'and' can live in the filter.
+
+    try {
+      var body = "select ".concat(uuid, " from ").concat(relation, " ").concat(condition);
+      console.log('Preparing to execute sql statement');
+      var returnValue = null;
+      return new Promise(function (resolve, reject) {
+        client.query(body, function (err, result) {
+          if (err) {
+            console.log(err);
+            reject(err);
+            client.end();
+          } else {
+            if (result.rows.length > 0) {
+              returnValue = result.rows[0][uuid];
+            }
+
+            resolve(returnValue);
+          }
+        });
+      });
+    } catch (e) {
+      client.end();
+      throw e;
     }
   };
 }
@@ -298,8 +358,8 @@ function insert(table, record, options) {
       console.log('Preparing to insert via:', safeQuery);
       return queryHandler(state, query, options);
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
@@ -323,7 +383,7 @@ function insertMany(table, records, options) {
     try {
       var data = (0, _languageCommon.expandReferences)(records)(state);
       return new Promise(function (resolve, reject) {
-        if (data.length === 0) {
+        if (!data || data.length === 0) {
           console.log('No records provided; skipping insert.');
           resolve(state);
         } // Note: we select the keys of the FIRST object as the canonical template.
@@ -340,8 +400,8 @@ function insertMany(table, records, options) {
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
@@ -385,8 +445,8 @@ function upsert(table, uuid, record, options) {
       console.log('Preparing to upsert via:', safeQuery);
       return queryHandler(state, query, options);
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
@@ -418,7 +478,7 @@ function upsertMany(table, uuid, data, options) {
     try {
       var records = (0, _languageCommon.expandReferences)(data)(state);
       return new Promise(function (resolve, reject) {
-        if (records.length === 0) {
+        if (!records || records.length === 0) {
           console.log('No records provided; skipping upsert.');
           resolve(state);
         }
@@ -439,8 +499,8 @@ function upsertMany(table, uuid, data, options) {
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
@@ -466,8 +526,8 @@ function describeTable(tableName, options) {
       console.log('Preparing to describe table via:', query);
       return queryHandler(state, query, options);
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
@@ -498,7 +558,7 @@ function insertTable(tableName, columns, options) {
     try {
       var data = (0, _languageCommon.expandReferences)(columns)(state);
       return new Promise(function (resolve, reject) {
-        if (data.length === 0) {
+        if (!data || data.length === 0) {
           console.log('No columns provided; skipping table creation.');
           resolve(state);
         }
@@ -511,8 +571,8 @@ function insertTable(tableName, columns, options) {
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
@@ -543,7 +603,7 @@ function modifyTable(tableName, columns, options) {
     try {
       var data = (0, _languageCommon.expandReferences)(columns)(state);
       return new Promise(function (resolve, reject) {
-        if (data.length === 0) {
+        if (!data || data.length === 0) {
           console.log('No columns provided; skipping table modification.');
           resolve(state);
         }
@@ -556,8 +616,8 @@ function modifyTable(tableName, columns, options) {
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
-      console.log(e);
       client.end();
+      throw e;
     }
   };
 }
@@ -571,13 +631,13 @@ function modifyTable(tableName, columns, options) {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-Adaptor.html">Adaptor</a></li></ul><h3>Classes</h3><ul><li><a href="module-Adaptor-describeTable.html">describeTable</a></li><li><a href="module-Adaptor-execute.html">execute</a></li><li><a href="module-Adaptor-insert.html">insert</a></li><li><a href="module-Adaptor-insertMany.html">insertMany</a></li><li><a href="module-Adaptor-insertTable.html">insertTable</a></li><li><a href="module-Adaptor-modifyTable.html">modifyTable</a></li><li><a href="module-Adaptor-sql.html">sql</a></li><li><a href="module-Adaptor-upsert.html">upsert</a></li><li><a href="module-Adaptor-upsertMany.html">upsertMany</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-Adaptor.html">Adaptor</a></li></ul><h3>Classes</h3><ul><li><a href="module-Adaptor-describeTable.html">describeTable</a></li><li><a href="module-Adaptor-execute.html">execute</a></li><li><a href="module-Adaptor-findValue.html">findValue</a></li><li><a href="module-Adaptor-insert.html">insert</a></li><li><a href="module-Adaptor-insertMany.html">insertMany</a></li><li><a href="module-Adaptor-insertTable.html">insertTable</a></li><li><a href="module-Adaptor-modifyTable.html">modifyTable</a></li><li><a href="module-Adaptor-sql.html">sql</a></li><li><a href="module-Adaptor-upsert.html">upsert</a></li><li><a href="module-Adaptor-upsertMany.html">upsertMany</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Fri Mar 12 2021 17:29:22 GMT+0000 (Greenwich Mean Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Fri Apr 16 2021 12:35:57 GMT+0000 (Greenwich Mean Time)
 </footer>
 
 <script> prettyPrint(); </script>
