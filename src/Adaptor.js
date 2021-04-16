@@ -146,6 +146,7 @@ export function sql(sqlQuery, options) {
  *    uuid: 'id',
  *    relation: 'users',
  *    where: { first_name: 'Mamadou' },
+ *    operator: { first_name: 'like', last_name: '='}
  *  })
  * @constructor
  * @param {object} filter - A filter object with the lookup table, a uuid and the condition
@@ -155,14 +156,19 @@ export function findValue(filter) {
   return state => {
     let { client } = state;
 
-    const { uuid, relation, where } = filter;
+    const { uuid, relation, where, operator } = filter;
+    const whereData = expandReferences(where)(state);
+    const operatorData = expandReferences(operator)(state);
 
     let conditionsArray = [];
-    for (let key in where) conditionsArray.push(`${key} = '${where[key]}'`);
-    const condition = conditionsArray.join(' and '); // In a near future the 'and' can live in the filter.
+    for (let key in where)
+      conditionsArray.push(`${key} ${operatorData[key]} '${whereData[key]}'`);
+    
+      const condition = conditionsArray.length > 0  ? `where ${conditionsArray.join(' and ')}` : ''; // In a near future the 'and' can live in the filter.
 
     try {
-      const body = `select ${uuid} from ${relation} where ${condition}`;
+      const body = `select ${uuid} from ${relation} ${condition}`;
+      console.log(body)
 
       console.log('Preparing to execute sql statement');
       let returnValue = null;
