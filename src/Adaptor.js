@@ -146,7 +146,7 @@ export function sql(sqlQuery, options) {
  *    uuid: 'id',
  *    relation: 'users',
  *    where: { first_name: 'Mamadou' },
- *    operator: { first_name: 'like', last_name: '='}
+ *    operator: { first_name: 'like' }
  *  })
  * @constructor
  * @param {object} filter - A filter object with the lookup table, a uuid and the condition
