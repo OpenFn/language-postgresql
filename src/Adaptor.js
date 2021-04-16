@@ -163,7 +163,7 @@ export function findValue(filter) {
     let conditionsArray = [];
     for (let key in where)
       conditionsArray.push(
-        `${key} ${operatorData?.key || '='} '${whereData[key]}'`
+        `${key} ${operatorData ? operatorData[key] : '='} '${whereData[key]}'`
       );
 
     const condition =
