@@ -1,6 +1,6 @@
 {
   "name": "@openfn/language-postgresql",
-  "version": "3.1.2",
+  "version": "3.1.3",
   "description": "A PostgreSQL Language Pack for OpenFn",
   "homepage": "https://docs.openfn.org",
   "main": "lib/index.js",
@@ -43,7 +43,7 @@
   "directories": {
     "lib": "./lib"
   },
-  "bundledDependencies": [
+  "bundleDependencies": [
     "@openfn/language-common",
     "pg",
     "pg-format"
