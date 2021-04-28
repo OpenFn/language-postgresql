@@ -103,6 +103,9 @@ function queryHandler(state, query, options) {
         reject(err);
         client.end();
       } else {
+        console.log(
+          `${result.command} succeeded, rowCount: ${result.rowCount}`
+        );
         resolve(result);
       }
     });
