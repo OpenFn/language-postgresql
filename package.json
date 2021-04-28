@@ -1,6 +1,6 @@
 {
   "name": "@openfn/language-postgresql",
-  "version": "3.1.2",
+  "version": "3.1.3",
   "description": "A PostgreSQL Language Pack for OpenFn",
   "homepage": "https://docs.openfn.org",
   "main": "lib/index.js",
@@ -11,12 +11,14 @@
   "scripts": {
     "build": "make",
     "test": "mocha --require @babel/register",
-    "test:watch": "mocha -w --require @babel/register"
+    "test:watch": "mocha -w --require @babel/register",
+    "prepack": "npx @openfn/simple-ast --adaptor ./lib/Adaptor.js --output ast.json"
   },
   "author": "Open Function Group",
   "license": "LGPLv3",
   "files": [
-    "lib/"
+    "lib/",
+    "ast.json"
   ],
   "dependencies": {
     "@openfn/language-common": "1.2.6",
@@ -37,5 +39,13 @@
     "mocha": "^7.1.1",
     "nock": "^12.0.3",
     "sinon": "^1.17.2"
-  }
+  },
+  "directories": {
+    "lib": "./lib"
+  },
+  "bundleDependencies": [
+    "@openfn/language-common",
+    "pg",
+    "pg-format"
+  ]
 }
