@@ -136,7 +136,7 @@ describeTable('users', { writeSql: true, execute: false });
 
 ## Create a table in the database
 
-This function allows to create a table in a database from a given array of columns.
+This function allows to create a table in a database from a given array of columns. The key `identity` can be use for a column to auto-generate a value.
 
 ```js
 insertTable('users', state =>
