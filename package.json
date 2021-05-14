@@ -43,7 +43,7 @@
   "directories": {
     "lib": "./lib"
   },
-  "bundleDependencies": [
+  "bundledDependencies": [
     "@openfn/language-common",
     "pg",
     "pg-format"
