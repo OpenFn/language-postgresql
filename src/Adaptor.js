@@ -340,6 +340,73 @@ export function upsert(table, uuid, record, options) {
 }
 
 /**
+ * Insert or update a record based on a logical condition using ON CONFLICT UPDATE
+ * @public
+ * @example
+ * upsertIf(
+ *   logical,
+ *   'users', // the DB table
+ *   'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME
+ *   { name: 'Elodie', id: 7 },
+ *   { writeSql:true, execute: true }
+ * )
+ * @constructor
+ * @param {boolean} logical - a logical statement that will be evaluated.
+ * @param {string} table - The target table
+ * @param {string} uuid - The uuid column to determine a matching/existing record
+ * @param {object} record - Payload data for the record as a JS object or function
+ * @param {object} options - Optional options argument
+ * @returns {Operation}
+ */
+export function upsertIf(logical, table, uuid, record, options) {
+  return state => {
+    let { client } = state;
+
+    try {
+      const data = expandReferences(record)(state);
+
+      return new Promise((resolve, reject) => {
+        if (!logical) {
+          console.log('Skipping upsert.');
+          resolve(state);
+          return state;
+        }
+
+        const columns = Object.keys(data).sort();
+        const columnsList = columns.join(', ');
+        const values = columns.map(key => data[key]);
+        const conflict = uuid.split(' ').length > 1 ? uuid : `(${uuid})`;
+
+        const updateValues = columns
+          .map(key => {
+            return `${key}=excluded.${key}`;
+          })
+          .join(', ');
+
+        const insertValues = format(
+          `INSERT INTO ${table} (${columnsList}) VALUES (%L)`,
+          values
+        );
+
+        const query = `${insertValues}
+        ON CONFLICT ${conflict}
+        DO UPDATE SET ${updateValues};`;
+
+        const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]
+        ON CONFLICT ${conflict}
+        DO UPDATE SET ${updateValues};`;
+
+        console.log('Preparing to upsert via:', safeQuery);
+        resolve(queryHandler(state, query, options));
+      });
+    } catch (e) {
+      client.end();
+      throw e;
+    }
+  };
+}
+
+/**
  * Insert or update multiple records using ON CONFLICT UPDATE and excluded
  * @public
  * @example
