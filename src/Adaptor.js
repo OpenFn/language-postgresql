@@ -343,7 +343,7 @@ export function upsert(table, uuid, record, options) {
  * Insert or update multiple records using ON CONFLICT UPDATE and excluded
  * @public
  * @example
- * upsert(
+ * upsertMany(
  *   'users', // the DB table
  *   'email', // a DB column with a unique constraint OR a CONSTRAINT NAME
  *   [
