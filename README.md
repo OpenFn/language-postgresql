@@ -94,6 +94,17 @@ upsert(
 );
 ```
 
+## Insert or Update if a value exist in the record
+
+This function will upsert a record only if the logical given is true. In this case we check if `dataValue('name')` exists.
+
+```js
+upsertIf(dataValue('name'), 'users', 'ON CONSTRAINT users_pkey', {
+  name: 'Elodie',
+  id: 7,
+});
+```
+
 ## Insert many records in postgresql
 
 This function allows the insert of a set of records inside a table all at once.
