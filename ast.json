@@ -319,7 +319,7 @@
           },
           {
             "title": "example",
-            "description": "upsertIf(\n  logical,\n  'users', // the DB table\n  'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME\n  { name: 'Elodie', id: 7 },\n  { writeSql:true, execute: true }\n)"
+            "description": "upsertIf(\n  dataValue('name'),\n  'users', // the DB table\n  'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME\n  { name: 'Elodie', id: 7 },\n  { writeSql:true, execute: true }\n)"
           },
           {
             "title": "constructor",
@@ -329,10 +329,10 @@
           },
           {
             "title": "param",
-            "description": "a logical statement that will be evaluated.",
+            "description": "a data to check existing value for.",
             "type": {
               "type": "NameExpression",
-              "name": "boolean"
+              "name": "string"
             },
             "name": "logical"
           },
