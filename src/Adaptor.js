@@ -344,14 +344,14 @@ export function upsert(table, uuid, record, options) {
  * @public
  * @example
  * upsertIf(
- *   logical,
+ *   dataValue('name'),
  *   'users', // the DB table
  *   'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME
  *   { name: 'Elodie', id: 7 },
  *   { writeSql:true, execute: true }
  * )
  * @constructor
- * @param {boolean} logical - a logical statement that will be evaluated.
+ * @param {string} logical - a data to check existing value for.
  * @param {string} table - The target table
  * @param {string} uuid - The uuid column to determine a matching/existing record
  * @param {object} record - Payload data for the record as a JS object or function
@@ -364,14 +364,14 @@ export function upsertIf(logical, table, uuid, record, options) {
 
     try {
       const data = expandReferences(record)(state);
+      const logicalData = expandReferences(logical)(state);
 
       return new Promise((resolve, reject) => {
-        if (!logical) {
-          console.log('Skipping upsert.');
+        if (!logicalData) {
+          console.log(`Skipping upsert for ${uuid}.`);
           resolve(state);
           return state;
         }
-
         const columns = Object.keys(data).sort();
         const columnsList = columns.join(', ');
         const values = columns.map(key => data[key]);
