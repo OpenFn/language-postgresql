@@ -37,6 +37,7 @@ exports.findValue = findValue;
 exports.insert = insert;
 exports.insertMany = insertMany;
 exports.upsert = upsert;
+exports.upsertIf = upsertIf;
 exports.upsertMany = upsertMany;
 exports.describeTable = describeTable;
 exports.insertTable = insertTable;
@@ -126,7 +127,7 @@ var _path = require("path");
 
 function _interopRequireDefault(obj) { return obj &amp;&amp; obj.__esModule ? obj : { "default": obj }; }
 
-function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); keys.push.apply(keys, symbols); } return keys; }
+function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) { symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); } keys.push.apply(keys, symbols); } return keys; }
 
 function _objectSpread(target) { for (var i = 1; i &lt; arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; if (i % 2) { ownKeys(Object(source), true).forEach(function (key) { _defineProperty(target, key, source[key]); }); } else if (Object.getOwnPropertyDescriptors) { Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)); } else { ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } } return target; }
 
@@ -233,6 +234,7 @@ function queryHandler(state, query, options) {
         reject(err);
         client.end();
       } else {
+        console.log("".concat(result.command, " succeeded, rowCount: ").concat(result.rowCount));
         resolve(result);
       }
     });
@@ -451,10 +453,66 @@ function upsert(table, uuid, record, options) {
   };
 }
 /**
+ * Insert or update a record based on a logical condition using ON CONFLICT UPDATE
+ * @public
+ * @example
+ * upsertIf(
+ *   dataValue('name'),
+ *   'users', // the DB table
+ *   'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME
+ *   { name: 'Elodie', id: 7 },
+ *   { writeSql:true, execute: true }
+ * )
+ * @constructor
+ * @param {string} logical - a data to check existing value for.
+ * @param {string} table - The target table
+ * @param {string} uuid - The uuid column to determine a matching/existing record
+ * @param {object} record - Payload data for the record as a JS object or function
+ * @param {object} options - Optional options argument
+ * @returns {Operation}
+ */
+
+
+function upsertIf(logical, table, uuid, record, options) {
+  return function (state) {
+    var client = state.client;
+
+    try {
+      var data = (0, _languageCommon.expandReferences)(record)(state);
+      var logicalData = (0, _languageCommon.expandReferences)(logical)(state);
+      return new Promise(function (resolve, reject) {
+        if (!logicalData) {
+          console.log("Skipping upsert for ".concat(uuid, "."));
+          resolve(state);
+          return state;
+        }
+
+        var columns = Object.keys(data).sort();
+        var columnsList = columns.join(', ');
+        var values = columns.map(function (key) {
+          return data[key];
+        });
+        var conflict = uuid.split(' ').length > 1 ? uuid : "(".concat(uuid, ")");
+        var updateValues = columns.map(function (key) {
+          return "".concat(key, "=excluded.").concat(key);
+        }).join(', ');
+        var insertValues = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES (%L)"), values);
+        var query = "".concat(insertValues, "\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
+        var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
+        console.log('Preparing to upsert via:', safeQuery);
+        resolve(queryHandler(state, query, options));
+      });
+    } catch (e) {
+      client.end();
+      throw e;
+    }
+  };
+}
+/**
  * Insert or update multiple records using ON CONFLICT UPDATE and excluded
  * @public
  * @example
- * upsert(
+ * upsertMany(
  *   'users', // the DB table
  *   'email', // a DB column with a unique constraint OR a CONSTRAINT NAME
  *   [
@@ -564,7 +622,7 @@ function insertTable(tableName, columns, options) {
         }
 
         var structureData = data.map(function (x) {
-          return "".concat(x.name, " ").concat(x.type, " ").concat(x.unique ? 'UNIQUE' : '', " ").concat(x.required ? 'NOT NULL' : '');
+          return "".concat(x.name, " ").concat(x.type, " ").concat(x.unique ? 'UNIQUE' : '', " ").concat(x.identity ? 'GENERATED BY DEFAULT AS IDENTITY' : '', " ").concat(x.required ? 'NOT NULL' : '');
         }).join(', ');
         var query = "CREATE TABLE ".concat(tableName, " (\n        ").concat(structureData, "\n      );");
         console.log('Preparing to create table via:', query);
@@ -609,7 +667,7 @@ function modifyTable(tableName, columns, options) {
         }
 
         var structureData = data.map(function (x) {
-          return "ADD COLUMN ".concat(x.name, " ").concat(x.type, " ").concat(x.required ? 'NOT NULL' : '');
+          return "ADD COLUMN ".concat(x.name, " ").concat(x.type, " ").concat(x.identity ? 'GENERATED BY DEFAULT AS IDENTITY' : '', " ").concat(x.required ? 'NOT NULL' : '');
         }).join(', ');
         var query = "ALTER TABLE ".concat(tableName, " ").concat(structureData, ";");
         console.log('Preparing to modify table via:', query);
@@ -631,13 +689,13 @@ function modifyTable(tableName, columns, options) {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-Adaptor.html">Adaptor</a></li></ul><h3>Classes</h3><ul><li><a href="module-Adaptor-describeTable.html">describeTable</a></li><li><a href="module-Adaptor-execute.html">execute</a></li><li><a href="module-Adaptor-findValue.html">findValue</a></li><li><a href="module-Adaptor-insert.html">insert</a></li><li><a href="module-Adaptor-insertMany.html">insertMany</a></li><li><a href="module-Adaptor-insertTable.html">insertTable</a></li><li><a href="module-Adaptor-modifyTable.html">modifyTable</a></li><li><a href="module-Adaptor-sql.html">sql</a></li><li><a href="module-Adaptor-upsert.html">upsert</a></li><li><a href="module-Adaptor-upsertMany.html">upsertMany</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-Adaptor.html">Adaptor</a></li></ul><h3>Classes</h3><ul><li><a href="module-Adaptor-describeTable.html">describeTable</a></li><li><a href="module-Adaptor-execute.html">execute</a></li><li><a href="module-Adaptor-findValue.html">findValue</a></li><li><a href="module-Adaptor-insert.html">insert</a></li><li><a href="module-Adaptor-insertMany.html">insertMany</a></li><li><a href="module-Adaptor-insertTable.html">insertTable</a></li><li><a href="module-Adaptor-modifyTable.html">modifyTable</a></li><li><a href="module-Adaptor-sql.html">sql</a></li><li><a href="module-Adaptor-upsert.html">upsert</a></li><li><a href="module-Adaptor-upsertIf.html">upsertIf</a></li><li><a href="module-Adaptor-upsertMany.html">upsertMany</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Fri Apr 16 2021 12:35:57 GMT+0000 (Greenwich Mean Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Thu May 20 2021 12:02:02 GMT+0000 (Greenwich Mean Time)
 </footer>
 
 <script> prettyPrint(); </script>
