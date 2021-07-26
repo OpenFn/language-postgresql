@@ -95,6 +95,7 @@ function queryHandler(state, query, options) {
       if (options.execute === false) {
         console.log('Not executing query; options.execute === false');
         resolve('Query not executed.');
+        return state;
       }
     }
 
@@ -605,6 +606,7 @@ export function modifyTable(tableName, columns, options) {
 }
 
 export {
+  fn,
   alterState,
   arrayToString,
   combine,
