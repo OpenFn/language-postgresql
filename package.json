@@ -23,7 +23,7 @@
     "ast.json"
   ],
   "dependencies": {
-    "@openfn/language-common": "1.2.6",
+    "@openfn/language-common": "1.4.1",
     "pg": "^8.3.2",
     "pg-format": "^1.0.4"
   },
