@@ -644,12 +644,12 @@
   "exports": [],
   "common": [
     {
-      "name": "alterState",
+      "name": "fn",
       "params": [
         "func"
       ],
       "docs": {
-        "description": "Runs a function using state.",
+        "description": "Creates a custom step (or operation) for more flexible job writing.",
         "tags": [
           {
             "title": "public",
@@ -658,7 +658,7 @@
           },
           {
             "title": "example",
-            "description": "alterState(callback)"
+            "description": "fn(state => {\n  // do some things to state\n  return state;\n});"
           },
           {
             "title": "function",
@@ -762,7 +762,7 @@
         "path"
       ],
       "docs": {
-        "description": "Picks out a single value from source data.\nIf a JSONPath returns more than one value for the reference, the first\nitem will be returned.",
+        "description": "Picks out a single value from the source data object—usually `state.data`.\nIf a JSONPath returns more than one value for the reference, the first\nitem will be returned.",
         "tags": [
           {
             "title": "public",
@@ -874,7 +874,7 @@
     {
       "name": "combine",
       "params": [
-        null
+        "operations"
       ],
       "docs": {
         "description": "Combines two operations into one",
@@ -894,6 +894,15 @@
             "name": null
           },
           {
+            "title": "param",
+            "description": "Operations to be performed.",
+            "type": {
+              "type": "NameExpression",
+              "name": "Operations"
+            },
+            "name": "operations"
+          },
+          {
             "title": "returns",
             "description": null,
             "type": {
@@ -903,7 +912,7 @@
           }
         ]
       },
-      "valid": false
+      "valid": true
     },
     {
       "name": "field",
@@ -953,7 +962,7 @@
     {
       "name": "fields",
       "params": [
-        null
+        "fields"
       ],
       "docs": {
         "description": "Zips key value pairs into an object.",
@@ -973,6 +982,15 @@
             "name": null
           },
           {
+            "title": "param",
+            "description": "a list of fields",
+            "type": {
+              "type": "NameExpression",
+              "name": "Fields"
+            },
+            "name": "fields"
+          },
+          {
             "title": "returns",
             "description": null,
             "type": {
@@ -982,7 +1000,7 @@
           }
         ]
       },
-      "valid": false
+      "valid": true
     },
     {
       "name": "merge",
@@ -1041,7 +1059,7 @@
       "name": "arrayToString",
       "params": [
         "arr",
-        null
+        "separator"
       ],
       "docs": {
         "description": "Turns an array into a string, separated by X.",
@@ -1053,7 +1071,7 @@
           },
           {
             "title": "example",
-            "description": "field(\"destination_string__c\", function(state) {\n   return arrayToString(dataValue(\"path_of_array\")(state), ', ')\n })"
+            "description": "field(\"destination_string__c\", function(state) {\n  return arrayToString(dataValue(\"path_of_array\")(state), ', ')\n})"
           },
           {
             "title": "function",
@@ -1068,10 +1086,27 @@
               "name": "array"
             },
             "name": "arr"
+          },
+          {
+            "title": "param",
+            "description": "Separator string.",
+            "type": {
+              "type": "NameExpression",
+              "name": "string"
+            },
+            "name": "separator"
+          },
+          {
+            "title": "returns",
+            "description": null,
+            "type": {
+              "type": "NameExpression",
+              "name": "string"
+            }
           }
         ]
       },
-      "valid": false
+      "valid": true
     }
   ]
 }
