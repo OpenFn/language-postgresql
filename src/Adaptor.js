@@ -536,7 +536,9 @@ export function insertTable(tableName, columns, options) {
             x =>
               `${x.name} ${x.type} ${
                 x.hasOwnProperty('default')
-                  ? x.type.includes('varchar') || x.type.includes('text')
+                  ? x.type.includes('varchar') ||
+                    x.type.includes('text') ||
+                    x.type.includes('BIT')
                     ? `DEFAULT '${x.default}'`
                     : `DEFAULT ${x.default}`
                   : ''
@@ -595,7 +597,9 @@ export function modifyTable(tableName, columns, options) {
             x =>
               `ADD COLUMN ${x.name} ${x.type} ${
                 x.hasOwnProperty('default')
-                  ? x.type.includes('varchar') || x.type.includes('text')
+                  ? x.type.includes('varchar') ||
+                    x.type.includes('text') ||
+                    x.type.includes('BIT')
                     ? `DEFAULT '${x.default}'`
                     : `DEFAULT ${x.default}`
                   : ''
