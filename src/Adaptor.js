@@ -2,10 +2,8 @@ import {
   execute as commonExecute,
   expandReferences,
 } from '@openfn/language-common';
-import { resolve as resolveUrl } from 'url';
 import pg from 'pg';
 import format from 'pg-format';
-import { resolve } from 'path';
 
 /** @module Adaptor */
 
@@ -52,10 +50,16 @@ function createClient(state) {
     user,
     ssl,
     allowSelfSignedCert,
+    ca,
+    key,
+    cert,
   } = state.configuration;
 
   // Allowing or blocking self signed certificate
-  const sslOptions = ssl ? { rejectUnauthorized: !allowSelfSignedCert } : false;
+  // https://node-postgres.com/features/ssl
+  const sslOptions = ssl
+    ? { rejectUnauthorized: !allowSelfSignedCert, cert, ca, key }
+    : false;
 
   // setup client config
   var config = { host, port, database, user, password, ssl: sslOptions };
