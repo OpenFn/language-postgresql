@@ -72,7 +72,7 @@ insert(
     inserted_at: '2020-08-27 00:00:00',
     updated_at: '2020-08-27 00:00:00',
   },
-  { writeSql: true }
+  { writeSql: true, logValues: true }
 );
 ```
 
@@ -90,7 +90,7 @@ upsert(
     inserted_at: '2010-01-01 00:00:00',
     updated_at: '2010-01-01 00:00:00',
   },
-  { writeSql: false, execute: true }
+  { writeSql: false, execute: true, logValues: true }
 );
 ```
 
@@ -110,14 +110,17 @@ upsertIf(dataValue('name'), 'users', 'ON CONSTRAINT users_pkey', {
 This function allows the insert of a set of records inside a table all at once.
 
 ```js
-insertMany('users', state =>
-  state.data.people.map(s => {
-    return {
-      first_name: ['Luca', 'Mohamed', 'Elodie'],
-      inserted_at: '2020-01-01 00:00:00',
-      updated_at: '2020-01-01 00:00:00',
-    };
-  })
+insertMany(
+  'users',
+  state =>
+    state.data.people.map(s => {
+      return {
+        first_name: ['Luca', 'Mohamed', 'Elodie'],
+        inserted_at: '2020-01-01 00:00:00',
+        updated_at: '2020-01-01 00:00:00',
+      };
+    }),
+  { logValues: true }
 );
 ```
 

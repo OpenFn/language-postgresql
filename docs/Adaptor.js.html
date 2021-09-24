@@ -42,6 +42,12 @@ exports.upsertMany = upsertMany;
 exports.describeTable = describeTable;
 exports.insertTable = insertTable;
 exports.modifyTable = modifyTable;
+Object.defineProperty(exports, "fn", {
+  enumerable: true,
+  get: function get() {
+    return _languageCommon.fn;
+  }
+});
 Object.defineProperty(exports, "alterState", {
   enumerable: true,
   get: function get() {
@@ -117,13 +123,9 @@ Object.defineProperty(exports, "sourceValue", {
 
 var _languageCommon = require("@openfn/language-common");
 
-var _url = require("url");
-
 var _pg = _interopRequireDefault(require("pg"));
 
 var _pgFormat = _interopRequireDefault(require("pg-format"));
-
-var _path = require("path");
 
 function _interopRequireDefault(obj) { return obj &amp;&amp; obj.__esModule ? obj : { "default": obj }; }
 
@@ -174,10 +176,17 @@ function createClient(state) {
       password = _state$configuration.password,
       user = _state$configuration.user,
       ssl = _state$configuration.ssl,
-      allowSelfSignedCert = _state$configuration.allowSelfSignedCert; // Allowing or blocking self signed certificate
+      allowSelfSignedCert = _state$configuration.allowSelfSignedCert,
+      ca = _state$configuration.ca,
+      key = _state$configuration.key,
+      cert = _state$configuration.cert; // Allowing or blocking self signed certificate
+  // https://node-postgres.com/features/ssl
 
   var sslOptions = ssl ? {
-    rejectUnauthorized: !allowSelfSignedCert
+    rejectUnauthorized: !allowSelfSignedCert,
+    cert: cert,
+    ca: ca,
+    key: key
   } : false; // setup client config
 
   var config = {
@@ -226,6 +235,7 @@ function queryHandler(state, query, options) {
       if (options.execute === false) {
         console.log('Not executing query; options.execute === false');
         resolve('Query not executed.');
+        return state;
       }
     }
 
@@ -335,7 +345,7 @@ function findValue(filter) {
  * Insert a record
  * @public
  * @example
- * insert('users', { name: 'Elodie', id: 7 });
+ * insert('users', { name: 'Elodie', id: 7 }, { logValues: true });
  * @constructor
  * @param {string} table - The target table
  * @param {object} record - Payload data for the record as a JS object or function
@@ -357,7 +367,8 @@ function insert(table, record, options) {
       });
       var query = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES (%L);"), values);
       var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]];");
-      console.log('Preparing to insert via:', safeQuery);
+      var queryToLog = options &amp;&amp; options.logValues ? query : safeQuery;
+      console.log('Preparing to insert via:', queryToLog);
       return queryHandler(state, query, options);
     } catch (e) {
       client.end();
@@ -369,7 +380,7 @@ function insert(table, record, options) {
  * Insert many records, using the keys of the first as the column template
  * @public
  * @example
- * insertMany('users', state => state.data.recordArray);
+ * insertMany('users', state => state.data.recordArray, { logValues: true });
  * @constructor
  * @param {string} table - The target table
  * @param {array} records - An array or a function that takes state and returns an array
@@ -398,7 +409,8 @@ function insertMany(table, records, options) {
         });
         var query = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES %L;"), valueSets);
         var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]];");
-        console.log('Preparing to insertMany via:', safeQuery);
+        var queryToLog = options &amp;&amp; options.logValues ? query : safeQuery;
+        console.log('Preparing to insertMany via:', queryToLog);
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
@@ -415,7 +427,7 @@ function insertMany(table, records, options) {
  *   'users', // the DB table
  *   'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME
  *   { name: 'Elodie', id: 7 },
- *   { writeSql:true, execute: true }
+ *   { writeSql:true, execute: true, logValues: true }
  * )
  * @constructor
  * @param {string} table - The target table
@@ -444,7 +456,8 @@ function upsert(table, uuid, record, options) {
       var insertValues = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES (%L)"), values);
       var query = "".concat(insertValues, "\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
       var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
-      console.log('Preparing to upsert via:', safeQuery);
+      var queryToLog = options &amp;&amp; options.logValues ? query : safeQuery;
+      console.log('Preparing to upsert via:', queryToLog);
       return queryHandler(state, query, options);
     } catch (e) {
       client.end();
@@ -499,7 +512,8 @@ function upsertIf(logical, table, uuid, record, options) {
         var insertValues = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES (%L)"), values);
         var query = "".concat(insertValues, "\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
         var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
-        console.log('Preparing to upsert via:', safeQuery);
+        var queryToLog = options &amp;&amp; options.logValues ? query : safeQuery;
+        console.log('Preparing to upsert via:', queryToLog);
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
@@ -519,6 +533,7 @@ function upsertIf(logical, table, uuid, record, options) {
  *     { name: 'one', email: 'one@openfn.org },
  *     { name: 'two', email: 'two@openfn.org },
  *   ]
+ *  { logValues: true }
  * )
  * @constructor
  * @param {string} table - The target table
@@ -553,7 +568,8 @@ function upsertMany(table, uuid, data, options) {
         var insertValues = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES %L"), values);
         var query = "".concat(insertValues, "\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
         var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
-        console.log('Preparing to upsert via:', safeQuery);
+        var queryToLog = options &amp;&amp; options.logValues ? query : safeQuery;
+        console.log('Preparing to upsert via:', queryToLog);
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
@@ -622,7 +638,7 @@ function insertTable(tableName, columns, options) {
         }
 
         var structureData = data.map(function (x) {
-          return "".concat(x.name, " ").concat(x.type, " ").concat(x.unique ? 'UNIQUE' : '', " ").concat(x.identity ? 'GENERATED BY DEFAULT AS IDENTITY' : '', " ").concat(x.required ? 'NOT NULL' : '');
+          return "".concat(x.name, " ").concat(x.type, " ").concat(x.hasOwnProperty('default') ? x.type.includes('varchar') || x.type.includes('text') || x.type.includes('BIT') ? "DEFAULT '".concat(x["default"], "'") : "DEFAULT ".concat(x["default"]) : '', " ").concat(x.unique ? 'UNIQUE' : '', " ").concat(x.identity ? 'GENERATED BY DEFAULT AS IDENTITY' : '', " ").concat(x.required ? 'NOT NULL' : '');
         }).join(', ');
         var query = "CREATE TABLE ".concat(tableName, " (\n        ").concat(structureData, "\n      );");
         console.log('Preparing to create table via:', query);
@@ -667,7 +683,7 @@ function modifyTable(tableName, columns, options) {
         }
 
         var structureData = data.map(function (x) {
-          return "ADD COLUMN ".concat(x.name, " ").concat(x.type, " ").concat(x.identity ? 'GENERATED BY DEFAULT AS IDENTITY' : '', " ").concat(x.required ? 'NOT NULL' : '');
+          return "ADD COLUMN ".concat(x.name, " ").concat(x.type, " ").concat(x.hasOwnProperty('default') ? x.type.includes('varchar') || x.type.includes('text') || x.type.includes('BIT') ? "DEFAULT '".concat(x["default"], "'") : "DEFAULT ".concat(x["default"]) : '', " ").concat(x.identity ? 'GENERATED BY DEFAULT AS IDENTITY' : '', " ").concat(x.required ? 'NOT NULL' : '');
         }).join(', ');
         var query = "ALTER TABLE ".concat(tableName, " ").concat(structureData, ";");
         console.log('Preparing to modify table via:', query);
@@ -678,8 +694,7 @@ function modifyTable(tableName, columns, options) {
       throw e;
     }
   };
-}
-</code></pre>
+}</code></pre>
         </article>
     </section>
 
@@ -695,7 +710,7 @@ function modifyTable(tableName, columns, options) {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Thu May 20 2021 12:02:02 GMT+0000 (Greenwich Mean Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Fri Sep 24 2021 19:37:51 GMT+0000 (Greenwich Mean Time)
 </footer>
 
 <script> prettyPrint(); </script>
