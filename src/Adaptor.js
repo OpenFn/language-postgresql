@@ -210,7 +210,7 @@ export function findValue(filter) {
  * Insert a record
  * @public
  * @example
- * insert('users', { name: 'Elodie', id: 7 });
+ * insert('users', { name: 'Elodie', id: 7 }, { logValues: true });
  * @constructor
  * @param {string} table - The target table
  * @param {object} record - Payload data for the record as a JS object or function
@@ -234,7 +234,8 @@ export function insert(table, record, options) {
 
       const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]];`;
 
-      console.log('Preparing to insert via:', safeQuery);
+      const queryToLog = options && options.logValues ? query : safeQuery;
+      console.log('Preparing to insert via:', queryToLog);
       return queryHandler(state, query, options);
     } catch (e) {
       client.end();
@@ -247,7 +248,7 @@ export function insert(table, record, options) {
  * Insert many records, using the keys of the first as the column template
  * @public
  * @example
- * insertMany('users', state => state.data.recordArray);
+ * insertMany('users', state => state.data.recordArray, { logValues: true });
  * @constructor
  * @param {string} table - The target table
  * @param {array} records - An array or a function that takes state and returns an array
@@ -278,7 +279,8 @@ export function insertMany(table, records, options) {
 
         const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]];`;
 
-        console.log('Preparing to insertMany via:', safeQuery);
+        const queryToLog = options && options.logValues ? query : safeQuery;
+        console.log('Preparing to insertMany via:', queryToLog);
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
@@ -296,7 +298,7 @@ export function insertMany(table, records, options) {
  *   'users', // the DB table
  *   'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME
  *   { name: 'Elodie', id: 7 },
- *   { writeSql:true, execute: true }
+ *   { writeSql:true, execute: true, logValues: true }
  * )
  * @constructor
  * @param {string} table - The target table
@@ -335,7 +337,8 @@ export function upsert(table, uuid, record, options) {
         ON CONFLICT ${conflict}
         DO UPDATE SET ${updateValues};`;
 
-      console.log('Preparing to upsert via:', safeQuery);
+      const queryToLog = options && options.logValues ? query : safeQuery;
+      console.log('Preparing to upsert via:', queryToLog);
       return queryHandler(state, query, options);
     } catch (e) {
       client.end();
@@ -401,7 +404,8 @@ export function upsertIf(logical, table, uuid, record, options) {
         ON CONFLICT ${conflict}
         DO UPDATE SET ${updateValues};`;
 
-        console.log('Preparing to upsert via:', safeQuery);
+        const queryToLog = options && options.logValues ? query : safeQuery;
+        console.log('Preparing to upsert via:', queryToLog);
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
@@ -422,6 +426,7 @@ export function upsertIf(logical, table, uuid, record, options) {
  *     { name: 'one', email: 'one@openfn.org },
  *     { name: 'two', email: 'two@openfn.org },
  *   ]
+ *  { logValues: true }
  * )
  * @constructor
  * @param {string} table - The target table
@@ -467,7 +472,8 @@ export function upsertMany(table, uuid, data, options) {
         ON CONFLICT ${conflict}
         DO UPDATE SET ${updateValues};`;
 
-        console.log('Preparing to upsert via:', safeQuery);
+        const queryToLog = options && options.logValues ? query : safeQuery;
+        console.log('Preparing to upsert via:', queryToLog);
         resolve(queryHandler(state, query, options));
       });
     } catch (e) {
