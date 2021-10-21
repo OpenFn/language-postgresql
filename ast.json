@@ -115,7 +115,7 @@
           },
           {
             "title": "example",
-            "description": "insert('users', { name: 'Elodie', id: 7 }, { logValues: true });"
+            "description": "insert('users', { name: 'Elodie', id: 7 }, { setNull: \"'NaN'\", logValues: true });"
           },
           {
             "title": "constructor",
@@ -179,7 +179,7 @@
           },
           {
             "title": "example",
-            "description": "insertMany('users', state => state.data.recordArray, { logValues: true });"
+            "description": "insertMany('users', state => state.data.recordArray, { setNull: \"'undefined'\", logValues: true });"
           },
           {
             "title": "constructor",
@@ -244,7 +244,7 @@
           },
           {
             "title": "example",
-            "description": "upsert(\n  'users', // the DB table\n  'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME\n  { name: 'Elodie', id: 7 },\n  { writeSql:true, execute: true, logValues: true }\n)"
+            "description": "upsert(\n  'users', // the DB table\n  'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME\n  { name: 'Elodie', id: 7 },\n  { setNull: [\"''\", \"'undefined'\"], writeSql:true, execute: true, logValues: true }\n)"
           },
           {
             "title": "constructor",
