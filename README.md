@@ -61,7 +61,7 @@ alterState(async state => {
 
 ## Insert a single record
 
-This functions is used to insert a single record in postgres database. An option `writeSql` allows to log the generated sql query.
+This functions is used to insert a single record in postgres database. An option `writeSql` allows to log the generated sql query. The `setNull` option allows to replace the specified elements with `NULL`.
 
 ```js
 insert(
@@ -72,7 +72,7 @@ insert(
     inserted_at: '2020-08-27 00:00:00',
     updated_at: '2020-08-27 00:00:00',
   },
-  { writeSql: true, logValues: true }
+  { setNull: ["''", "'undefined'"], writeSql: true, logValues: true }
 );
 ```
 
@@ -90,7 +90,7 @@ upsert(
     inserted_at: '2010-01-01 00:00:00',
     updated_at: '2010-01-01 00:00:00',
   },
-  { writeSql: false, execute: true, logValues: true }
+  { setNull: ["'NaN'", "'undefined'"], writeSql: false, execute: true, logValues: true }
 );
 ```
 
