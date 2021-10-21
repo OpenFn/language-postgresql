@@ -129,6 +129,8 @@ var _pgFormat = _interopRequireDefault(require("pg-format"));
 
 function _interopRequireDefault(obj) { return obj &amp;&amp; obj.__esModule ? obj : { "default": obj }; }
 
+function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" &amp;&amp; typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj &amp;&amp; typeof Symbol === "function" &amp;&amp; obj.constructor === Symbol &amp;&amp; obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
 function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) { symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); } keys.push.apply(keys, symbols); } return keys; }
 
 function _objectSpread(target) { for (var i = 1; i &lt; arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; if (i % 2) { ownKeys(Object(source), true).forEach(function (key) { _defineProperty(target, key, source[key]); }); } else if (Object.getOwnPropertyDescriptors) { Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)); } else { ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } } return target; }
@@ -160,7 +162,7 @@ function execute() {
     queries: []
   };
   return function (state) {
-    return _languageCommon.execute.apply(void 0, [createClient, connect].concat(operations, [disconnect, cleanupState]))(_objectSpread({}, initialState, {}, state))["catch"](function (e) {
+    return _languageCommon.execute.apply(void 0, [createClient, connect].concat(operations, [disconnect, cleanupState]))(_objectSpread(_objectSpread({}, initialState), state))["catch"](function (e) {
       console.error(e);
       console.error('Unhandled error in the operations. Exiting process.');
       process.exit(1);
@@ -199,7 +201,7 @@ function createClient(state) {
   }; // instantiate a new client
 
   var client = new _pg["default"].Client(config);
-  return _objectSpread({}, state, {
+  return _objectSpread(_objectSpread({}, state), {}, {
     client: client
   });
 }
@@ -207,7 +209,7 @@ function createClient(state) {
 function connect(state) {
   var client = state.client;
   client.connect();
-  return _objectSpread({}, state, {
+  return _objectSpread(_objectSpread({}, state), {}, {
     client: client
   });
 }
@@ -221,6 +223,37 @@ function disconnect(state) {
 function cleanupState(state) {
   delete state.client;
   return state;
+}
+
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&amp;'); // $&amp; means the whole matched string
+}
+
+function handleValues(sqlString, nullString) {
+  var sql = sqlString;
+
+  if (nullString == false) {
+    return sqlString;
+  } else if (Array.isArray(nullString)) {
+    nullString.forEach(function (ns) {
+      var re = new RegExp(escapeRegExp(ns), 'g');
+      sql = sql.replace(re, 'NULL');
+    });
+    return sql;
+  } else if (_typeof(nullString) === 'object') {
+    throw 'setNull must be a string or an array of strings.';
+  }
+
+  var re = new RegExp(escapeRegExp(nullString), 'g');
+  return sqlString.replace(re, 'NULL');
+}
+
+function handleOptions(options) {
+  if (options &amp;&amp; options.setNull === false) {
+    return false;
+  }
+
+  return options &amp;&amp; options.setNull || "'undefined'";
 }
 
 function queryHandler(state, query, options) {
@@ -249,7 +282,7 @@ function queryHandler(state, query, options) {
       }
     });
   }).then(function (data) {
-    return _objectSpread({}, state, {
+    return _objectSpread(_objectSpread({}, state), {}, {
       response: {
         body: data
       }
@@ -345,7 +378,7 @@ function findValue(filter) {
  * Insert a record
  * @public
  * @example
- * insert('users', { name: 'Elodie', id: 7 }, { logValues: true });
+ * insert('users', { name: 'Elodie', id: 7 }, { setNull: "'NaN'", logValues: true });
  * @constructor
  * @param {string} table - The target table
  * @param {object} record - Payload data for the record as a JS object or function
@@ -365,7 +398,7 @@ function insert(table, record, options) {
       var values = columns.map(function (key) {
         return data[key];
       });
-      var query = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES (%L);"), values);
+      var query = handleValues((0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES (%L);"), values), handleOptions(options));
       var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]];");
       var queryToLog = options &amp;&amp; options.logValues ? query : safeQuery;
       console.log('Preparing to insert via:', queryToLog);
@@ -380,7 +413,7 @@ function insert(table, record, options) {
  * Insert many records, using the keys of the first as the column template
  * @public
  * @example
- * insertMany('users', state => state.data.recordArray, { logValues: true });
+ * insertMany('users', state => state.data.recordArray, { setNull: "'undefined'", logValues: true });
  * @constructor
  * @param {string} table - The target table
  * @param {array} records - An array or a function that takes state and returns an array
@@ -407,7 +440,7 @@ function insertMany(table, records, options) {
         var valueSets = data.map(function (x) {
           return Object.values(x);
         });
-        var query = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES %L;"), valueSets);
+        var query = handleValues((0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES %L;"), valueSets), handleOptions(options));
         var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]];");
         var queryToLog = options &amp;&amp; options.logValues ? query : safeQuery;
         console.log('Preparing to insertMany via:', queryToLog);
@@ -427,7 +460,7 @@ function insertMany(table, records, options) {
  *   'users', // the DB table
  *   'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME
  *   { name: 'Elodie', id: 7 },
- *   { writeSql:true, execute: true, logValues: true }
+ *   { setNull: ["''", "'undefined'"], writeSql:true, execute: true, logValues: true }
  * )
  * @constructor
  * @param {string} table - The target table
@@ -454,7 +487,7 @@ function upsert(table, uuid, record, options) {
         return "".concat(key, "=excluded.").concat(key);
       }).join(', ');
       var insertValues = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES (%L)"), values);
-      var query = "".concat(insertValues, "\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
+      var query = handleValues("".concat(insertValues, "\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";"), handleOptions(options));
       var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
       var queryToLog = options &amp;&amp; options.logValues ? query : safeQuery;
       console.log('Preparing to upsert via:', queryToLog);
@@ -510,7 +543,7 @@ function upsertIf(logical, table, uuid, record, options) {
           return "".concat(key, "=excluded.").concat(key);
         }).join(', ');
         var insertValues = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES (%L)"), values);
-        var query = "".concat(insertValues, "\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
+        var query = handleValues("".concat(insertValues, "\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";"), handleOptions(options));
         var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
         var queryToLog = options &amp;&amp; options.logValues ? query : safeQuery;
         console.log('Preparing to upsert via:', queryToLog);
@@ -566,7 +599,7 @@ function upsertMany(table, uuid, data, options) {
           return "".concat(key, "=excluded.").concat(key);
         }).join(', ');
         var insertValues = (0, _pgFormat["default"])("INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES %L"), values);
-        var query = "".concat(insertValues, "\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
+        var query = handleValues("".concat(insertValues, "\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";"), handleOptions(options));
         var safeQuery = "INSERT INTO ".concat(table, " (").concat(columnsList, ") VALUES [--REDACTED--]\n        ON CONFLICT ").concat(conflict, "\n        DO UPDATE SET ").concat(updateValues, ";");
         var queryToLog = options &amp;&amp; options.logValues ? query : safeQuery;
         console.log('Preparing to upsert via:', queryToLog);
@@ -710,7 +743,7 @@ function modifyTable(tableName, columns, options) {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Fri Sep 24 2021 19:37:51 GMT+0000 (Greenwich Mean Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.7</a> on Thu Oct 21 2021 11:45:53 GMT+0000 (Greenwich Mean Time)
 </footer>
 
 <script> prettyPrint(); </script>

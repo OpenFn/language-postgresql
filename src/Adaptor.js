@@ -87,6 +87,34 @@ function cleanupState(state) {
   return state;
 }
 
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+}
+
+function handleValues(sqlString, nullString) {
+  let sql = sqlString;
+  if (nullString == false) {
+    return sqlString;
+  } else if (Array.isArray(nullString)) {
+    nullString.forEach(ns => {
+      const re = new RegExp(escapeRegExp(ns), 'g');
+      sql = sql.replace(re, 'NULL');
+    });
+    return sql;
+  } else if (typeof nullString === 'object') {
+    throw 'setNull must be a string or an array of strings.';
+  }
+  const re = new RegExp(escapeRegExp(nullString), 'g');
+  return sqlString.replace(re, 'NULL');
+}
+
+function handleOptions(options) {
+  if (options && options.setNull === false) {
+    return false;
+  }
+  return (options && options.setNull) || "'undefined'";
+}
+
 function queryHandler(state, query, options) {
   const { client } = state;
   return new Promise((resolve, reject) => {
@@ -210,7 +238,7 @@ export function findValue(filter) {
  * Insert a record
  * @public
  * @example
- * insert('users', { name: 'Elodie', id: 7 }, { logValues: true });
+ * insert('users', { name: 'Elodie', id: 7 }, { setNull: "'NaN'", logValues: true });
  * @constructor
  * @param {string} table - The target table
  * @param {object} record - Payload data for the record as a JS object or function
@@ -227,9 +255,9 @@ export function insert(table, record, options) {
       const columnsList = columns.join(', ');
       const values = columns.map(key => data[key]);
 
-      const query = format(
-        `INSERT INTO ${table} (${columnsList}) VALUES (%L);`,
-        values
+      const query = handleValues(
+        format(`INSERT INTO ${table} (${columnsList}) VALUES (%L);`, values),
+        handleOptions(options)
       );
 
       const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]];`;
@@ -248,7 +276,7 @@ export function insert(table, record, options) {
  * Insert many records, using the keys of the first as the column template
  * @public
  * @example
- * insertMany('users', state => state.data.recordArray, { logValues: true });
+ * insertMany('users', state => state.data.recordArray, { setNull: "'undefined'", logValues: true });
  * @constructor
  * @param {string} table - The target table
  * @param {array} records - An array or a function that takes state and returns an array
@@ -272,9 +300,9 @@ export function insertMany(table, records, options) {
         const columnsList = columns.join(', ');
         const valueSets = data.map(x => Object.values(x));
 
-        const query = format(
-          `INSERT INTO ${table} (${columnsList}) VALUES %L;`,
-          valueSets
+        const query = handleValues(
+          format(`INSERT INTO ${table} (${columnsList}) VALUES %L;`, valueSets),
+          handleOptions(options)
         );
 
         const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]];`;
@@ -298,7 +326,7 @@ export function insertMany(table, records, options) {
  *   'users', // the DB table
  *   'ON CONSTRAINT users_pkey', // a DB column with a unique constraint OR a CONSTRAINT NAME
  *   { name: 'Elodie', id: 7 },
- *   { writeSql:true, execute: true, logValues: true }
+ *   { setNull: ["''", "'undefined'"], writeSql:true, execute: true, logValues: true }
  * )
  * @constructor
  * @param {string} table - The target table
@@ -329,9 +357,12 @@ export function upsert(table, uuid, record, options) {
         values
       );
 
-      const query = `${insertValues}
+      const query = handleValues(
+        `${insertValues}
         ON CONFLICT ${conflict}
-        DO UPDATE SET ${updateValues};`;
+        DO UPDATE SET ${updateValues};`,
+        handleOptions(options)
+      );
 
       const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]
         ON CONFLICT ${conflict}
@@ -396,9 +427,12 @@ export function upsertIf(logical, table, uuid, record, options) {
           values
         );
 
-        const query = `${insertValues}
+        const query = handleValues(
+          `${insertValues}
         ON CONFLICT ${conflict}
-        DO UPDATE SET ${updateValues};`;
+        DO UPDATE SET ${updateValues};`,
+          handleOptions(options)
+        );
 
         const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]
         ON CONFLICT ${conflict}
@@ -464,9 +498,12 @@ export function upsertMany(table, uuid, data, options) {
           values
         );
 
-        const query = `${insertValues}
+        const query = handleValues(
+          `${insertValues}
         ON CONFLICT ${conflict}
-        DO UPDATE SET ${updateValues};`;
+        DO UPDATE SET ${updateValues};`,
+          handleOptions(options)
+        );
 
         const safeQuery = `INSERT INTO ${table} (${columnsList}) VALUES [--REDACTED--]
         ON CONFLICT ${conflict}
