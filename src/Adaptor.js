@@ -669,16 +669,17 @@ export function modifyTable(tableName, columns, options) {
 }
 
 export {
-  fn,
   alterState,
   arrayToString,
   combine,
   dataPath,
   dataValue,
+  dateFns,
   each,
   field,
-  http,
   fields,
+  fn,
+  http,
   lastReferenceValue,
   merge,
   sourceValue,
