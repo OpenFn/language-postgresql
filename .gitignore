@@ -34,3 +34,5 @@ node_modules
 
 # tmp folder for test/sensitive data
 tmp
+
+language-postgresql-v*.tgz
