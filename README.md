@@ -187,6 +187,6 @@ Clone the repo, run `npm install`.
 
 Run tests using `npm run test` or `npm run test:watch`
 
-Build the project using `make`.
+Build the project using `npm run build`.
 
 To build the docs for this repo, run `./node_modules/.bin/jsdoc --readme ./README.md ./lib -d docs`.
