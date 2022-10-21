@@ -1,4 +1,9 @@
-# Language PostgreSQL
+# _⚠️ MOVED TO [OpenFn/adaptors](https://github.com/OpenFn/adaptors)! ⚠️_
+
+**N.B.: New versions are available at:
+https://github.com/OpenFn/adaptors/tree/main/packages/postgresql**
+
+# Language PostgreSQL (Archived)
 
 Language Pack for building expressions and operations to run PostgreSQL queries.
 
@@ -90,7 +95,12 @@ upsert(
     inserted_at: '2010-01-01 00:00:00',
     updated_at: '2010-01-01 00:00:00',
   },
-  { setNull: ["'NaN'", "'undefined'"], writeSql: false, execute: true, logValues: true }
+  {
+    setNull: ["'NaN'", "'undefined'"],
+    writeSql: false,
+    execute: true,
+    logValues: true,
+  }
 );
 ```
 
